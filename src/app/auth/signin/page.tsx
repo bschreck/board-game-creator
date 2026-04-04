@@ -1,7 +1,8 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,16 +10,18 @@ import { Dice5 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
-export default function SignInPage() {
+function SignInContent() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
   const handleDemoLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     await signIn("credentials", {
       email: email || "demo@boardcraft.com",
-      callbackUrl: "/dashboard",
+      callbackUrl,
     });
   };
 
@@ -72,7 +75,7 @@ export default function SignInPage() {
             <Button
               variant="outline"
               className="w-full"
-              onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+              onClick={() => signIn("google", { callbackUrl })}
             >
               <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24">
                 <path
@@ -102,5 +105,13 @@ export default function SignInPage() {
         </Card>
       </motion.div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <SignInContent />
+    </Suspense>
   );
 }

@@ -3,6 +3,8 @@
 import { create } from "zustand";
 import { BaseGameId } from "./game-data";
 
+const PENDING_GAME_KEY = "boardcraft_pending_game";
+
 export interface GameState {
   step: number;
   baseGame: BaseGameId | null;
@@ -25,6 +27,9 @@ export interface GameState {
   removePhoto: (url: string) => void;
   setTier: (tier: "basic" | "premium" | "deluxe") => void;
   setBoardPreview: (url: string | null) => void;
+  savePendingState: () => void;
+  restorePendingState: () => boolean;
+  clearPendingState: () => void;
   reset: () => void;
 }
 
@@ -40,7 +45,7 @@ const initialState = {
   boardPreview: null as string | null,
 };
 
-export const useGameStore = create<GameState>((set) => ({
+export const useGameStore = create<GameState>((set, get) => ({
   ...initialState,
   setStep: (step) => set({ step }),
   setBaseGame: (baseGame) => set({ baseGame }),
@@ -67,5 +72,36 @@ export const useGameStore = create<GameState>((set) => ({
     set((state) => ({ photos: state.photos.filter((p) => p.url !== url) })),
   setTier: (tier) => set({ tier }),
   setBoardPreview: (boardPreview) => set({ boardPreview }),
+  savePendingState: () => {
+    try {
+      const { step, baseGame, gameName, theme, acceptedRules, rejectedRules, photos, tier, boardPreview } = get();
+      const data = { step, baseGame, gameName, theme, acceptedRules, rejectedRules, photos, tier, boardPreview };
+      localStorage.setItem(PENDING_GAME_KEY, JSON.stringify(data));
+    } catch {}
+  },
+  restorePendingState: () => {
+    try {
+      const raw = localStorage.getItem(PENDING_GAME_KEY);
+      if (!raw) return false;
+      const data = JSON.parse(raw);
+      set({
+        step: data.step ?? 0,
+        baseGame: data.baseGame ?? null,
+        gameName: data.gameName ?? "",
+        theme: data.theme ?? "",
+        acceptedRules: data.acceptedRules ?? [],
+        rejectedRules: data.rejectedRules ?? [],
+        photos: data.photos ?? [],
+        tier: data.tier ?? "premium",
+        boardPreview: data.boardPreview ?? null,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  clearPendingState: () => {
+    try { localStorage.removeItem(PENDING_GAME_KEY); } catch {}
+  },
   reset: () => set(initialState),
 }));

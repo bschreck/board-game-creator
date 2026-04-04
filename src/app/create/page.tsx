@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signIn } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -35,9 +35,41 @@ const STEPS = [
 
 export default function CreatePage() {
   const router = useRouter();
-  const { data: session } = useSession();
-  const { step, setStep, baseGame, gameName, tier } = useGameStore();
+  const { data: session, status } = useSession();
+  const { step, setStep, baseGame, gameName, tier, savePendingState, restorePendingState, clearPendingState } = useGameStore();
   const [saving, setSaving] = useState(false);
+  const restoredRef = useRef(false);
+
+  // Restore pending game state after auth redirect
+  useEffect(() => {
+    if (restoredRef.current) return;
+    if (status === "loading") return;
+    restoredRef.current = true;
+
+    if (status === "authenticated") {
+      const hadPending = restorePendingState();
+      if (hadPending) {
+        clearPendingState();
+        // Auto-save the restored game to the database
+        const store = useGameStore.getState();
+        if (store.baseGame && store.gameName) {
+          fetch("/api/game", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              baseGame: store.baseGame,
+              name: store.gameName,
+              theme: store.theme,
+              rules: store.acceptedRules,
+              photos: store.photos.map((p) => p.name),
+              tier: store.tier,
+              boardPreview: store.boardPreview,
+            }),
+          }).catch(() => {});
+        }
+      }
+    }
+  }, [status, restorePendingState, clearPendingState]);
 
   const canProceed = () => {
     switch (step) {
@@ -70,6 +102,7 @@ export default function CreatePage() {
 
   const handleCheckout = async () => {
     if (!session) {
+      savePendingState();
       signIn(undefined, { callbackUrl: "/create" });
       return;
     }
