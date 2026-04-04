@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 type TextFieldType = "title" | "description" | "rule" | "card-text" | "rules-booklet";
 
-const PROMPTS: Record<TextFieldType, (ctx: { baseGame: string; theme: string; gameName: string; rules: string[] }) => string> = {
-  title: ({ baseGame, theme }) =>
-    `Generate a single creative, catchy board game title for a custom version of ${baseGame} with the theme "${theme || "fun party game"}". Respond with ONLY the title, no quotes, no explanation. Keep it under 8 words.`,
-  description: ({ baseGame, theme, gameName }) =>
-    `Write a short, exciting 1-2 sentence description for a custom board game called "${gameName || "Custom Game"}" based on ${baseGame} with the theme "${theme || "party fun"}". Make it sound like back-of-box marketing copy. Respond with ONLY the description.`,
+type PromptCtx = { baseGame: string; theme: string; gameName: string; rules: string[]; photoContext: string };
+
+const PROMPTS: Record<TextFieldType, (ctx: PromptCtx) => string> = {
+  title: ({ baseGame, theme, photoContext }) =>
+    `Generate a single creative, catchy board game title for a custom version of ${baseGame} with the theme "${theme || "fun party game"}".${photoContext ? ` ${photoContext}` : ""} Respond with ONLY the title, no quotes, no explanation. Keep it under 8 words.`,
+  description: ({ baseGame, theme, gameName, photoContext }) =>
+    `Write a short, exciting 1-2 sentence description for a custom board game called "${gameName || "Custom Game"}" based on ${baseGame} with the theme "${theme || "party fun"}".${photoContext ? ` ${photoContext}` : ""} Make it sound like back-of-box marketing copy. Respond with ONLY the description.`,
   rule: ({ baseGame, theme, rules }) =>
     `You are a creative board game designer. Generate ONE fun, surprising rule mutation for ${baseGame} with theme "${theme || "custom"}".
 ${rules?.length ? `\nDo NOT suggest these rules (already used): ${rules.join("; ")}` : ""}
@@ -21,12 +23,13 @@ Write 3-5 short paragraphs covering: game objective, setup, turn structure, winn
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { field, baseGame, theme, gameName, rules } = body as {
+  const { field, baseGame, theme, gameName, rules, photoContext } = body as {
     field: TextFieldType;
     baseGame: string;
     theme?: string;
     gameName?: string;
     rules?: string[];
+    photoContext?: string;
   };
 
   if (!field || !baseGame) {
@@ -39,11 +42,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { getCachedTextModel } = await import("@/lib/gemini");
-    const model = await getCachedTextModel();
-    const prompt = promptFn({ baseGame, theme: theme || "", gameName: gameName || "", rules: rules || [] });
-    const response = await model.generateContent(prompt);
-    const text = response.response.text()?.trim();
+    const { cerebrasGenerate } = await import("@/lib/cerebras");
+    const prompt = promptFn({ baseGame, theme: theme || "", gameName: gameName || "", rules: rules || [], photoContext: photoContext || "" });
+    const text = await cerebrasGenerate(prompt);
     return NextResponse.json({ text });
   } catch (e) {
     console.error("Text generation failed:", e);

@@ -8,33 +8,24 @@ import { generateText } from "@/lib/ai-helpers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Shuffle, Check, X, Sparkles, Trash2, Wand2, Loader2 } from "lucide-react";
+import { Shuffle, Check, X, Sparkles, Trash2, Loader2 } from "lucide-react";
 
 export function StepCustomizeRules() {
   const { baseGame, theme, acceptedRules, rejectedRules, acceptRule, rejectRule, removeRule } =
     useGameStore();
   const [currentSuggestion, setCurrentSuggestion] = useState<string | null>(null);
   const [shaking, setShaking] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
 
   const allRules = baseGame ? RULE_MUTATIONS[baseGame] || [] : [];
   const availableRules = allRules.filter(
     (r) => !acceptedRules.includes(r) && !rejectedRules.includes(r)
   );
 
-  const suggestRule = useCallback(() => {
-    if (availableRules.length === 0) return;
-    setShaking(true);
-    setTimeout(() => {
-      const random = availableRules[Math.floor(Math.random() * availableRules.length)];
-      setCurrentSuggestion(random);
-      setShaking(false);
-    }, 600);
-  }, [availableRules]);
-
-  const suggestAIRule = useCallback(async () => {
+  const suggestRule = useCallback(async () => {
     if (!baseGame) return;
-    setAiLoading(true);
+    setShaking(true);
+
+    // Try AI generation first (Cerebras is fast enough)
     try {
       const rule = await generateText({
         field: "rule",
@@ -44,11 +35,20 @@ export function StepCustomizeRules() {
       });
       if (rule) {
         setCurrentSuggestion(rule);
+        setShaking(false);
+        return;
       }
-    } finally {
-      setAiLoading(false);
+    } catch {
+      // Fall through to static rules
     }
-  }, [baseGame, theme, acceptedRules, rejectedRules]);
+
+    // Fallback to static rules
+    if (availableRules.length > 0) {
+      const random = availableRules[Math.floor(Math.random() * availableRules.length)];
+      setCurrentSuggestion(random);
+    }
+    setShaking(false);
+  }, [baseGame, theme, acceptedRules, rejectedRules, availableRules]);
 
   const handleAccept = () => {
     if (currentSuggestion) {
@@ -73,39 +73,29 @@ export function StepCustomizeRules() {
         </p>
       </div>
 
-      {/* Shake it up + AI generate buttons */}
-      <div className="flex justify-center gap-3">
+      {/* Single Shake It Up button */}
+      <div className="flex justify-center">
         <motion.div animate={shaking ? { rotate: [0, -10, 10, -10, 10, 0] } : {}} transition={{ duration: 0.5 }}>
           <Button
             size="xl"
             onClick={suggestRule}
-            disabled={availableRules.length === 0 || shaking}
+            disabled={shaking}
             className="group"
           >
-            <Shuffle className={`h-5 w-5 mr-2 ${shaking ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`} />
+            {shaking ? (
+              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+            ) : (
+              <Shuffle className="h-5 w-5 mr-2 group-hover:rotate-180 transition-transform duration-500" />
+            )}
             {shaking ? "Shaking..." : "Shake It Up!"}
             <Sparkles className="h-4 w-4 ml-2" />
           </Button>
         </motion.div>
-        <Button
-          size="xl"
-          variant="outline"
-          onClick={suggestAIRule}
-          disabled={aiLoading}
-          className="text-violet-600 border-violet-200 hover:bg-violet-50"
-        >
-          {aiLoading ? (
-            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-          ) : (
-            <Wand2 className="h-5 w-5 mr-2" />
-          )}
-          {aiLoading ? "Generating..." : "AI Rule"}
-        </Button>
       </div>
 
-      {availableRules.length === 0 && !currentSuggestion && (
+      {availableRules.length === 0 && !currentSuggestion && !shaking && (
         <p className="text-center text-sm text-gray-400">
-          You&apos;ve seen all available rule mutations! Remove some rejected rules to see them again, or try AI Rule for fresh ideas.
+          You&apos;ve seen all available static rules! Hit Shake It Up for fresh AI-generated ideas.
         </p>
       )}
 

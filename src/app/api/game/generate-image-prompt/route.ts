@@ -45,11 +45,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { getCachedTextModel } = await import("@/lib/gemini");
-    const model = await getCachedTextModel();
+    const { cerebrasGenerate } = await import("@/lib/cerebras");
     const prompt = promptFn({ baseGame, theme: theme || "", gameName: gameName || "", rules: rules || [] });
-    const response = await model.generateContent(prompt);
-    const text = response.response.text()?.trim();
+    const text = await cerebrasGenerate(prompt);
     return NextResponse.json({ prompt: text });
   } catch (e) {
     console.error("Image prompt generation failed:", e);

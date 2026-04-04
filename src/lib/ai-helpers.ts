@@ -4,6 +4,7 @@ export async function generateText(params: {
   theme?: string;
   gameName?: string;
   rules?: string[];
+  photoContext?: string;
 }): Promise<string | null> {
   try {
     const res = await fetch("/api/game/generate-text", {

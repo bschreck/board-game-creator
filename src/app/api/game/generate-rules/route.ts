@@ -9,23 +9,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid game" }, { status: 400 });
   }
 
-  // AI-powered rule generation via Gemini
+  // AI-powered rule generation via Cerebras
   if (useAI) {
     try {
-      const { getCachedTextModel } = await import("@/lib/gemini");
-      const model = await getCachedTextModel();
-      const response = await model.generateContent(`You are a creative board game designer. Generate ONE fun, surprising rule mutation for ${baseGame}. 
-        
+      const { cerebrasGenerate } = await import("@/lib/cerebras");
+      const rule = await cerebrasGenerate(`You are a creative board game designer. Generate ONE fun, surprising rule mutation for ${baseGame}.
+
 The rule should be a short, clear sentence that modifies the original game in a fun way. Be creative and funny.
 ${excludeRules?.length ? `\nDo NOT suggest these rules (already used): ${excludeRules.join("; ")}` : ""}
 
 Respond with ONLY the rule text, nothing else. No quotes, no prefix.`);
-      const rule = response.response.text()?.trim();
       if (rule) {
         return NextResponse.json({ rule, source: "ai" });
       }
     } catch (e) {
-      console.error("Gemini rule generation failed, falling back to static:", e);
+      console.error("Cerebras rule generation failed, falling back to static:", e);
     }
   }
 

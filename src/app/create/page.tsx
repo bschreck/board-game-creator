@@ -193,48 +193,53 @@ export default function CreatePage() {
             </motion.div>
           </AnimatePresence>
 
-          {/* Navigation */}
-          <div className="flex items-center justify-between mt-8 pt-6 pb-24 sm:pb-6 border-t border-gray-200">
+          {/* Spacer so content doesn't hide behind sticky nav */}
+          <div className="h-24" />
+        </div>
+      </div>
+
+      {/* Sticky bottom navigation */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/80 backdrop-blur-md">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          <Button
+            variant="ghost"
+            onClick={handleBack}
+            disabled={step === 0}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            Step {step + 1} of {STEPS.length}
+          </div>
+
+          {step < STEPS.length - 1 ? (
             <Button
-              variant="ghost"
-              onClick={handleBack}
-              disabled={step === 0}
+              onClick={handleNext}
+              disabled={!canProceed()}
               className="gap-2"
             >
-              <ArrowLeft className="h-4 w-4" />
-              Back
+              Next
+              <ArrowRight className="h-4 w-4" />
             </Button>
-
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              Step {step + 1} of {STEPS.length}
-            </div>
-
-            {step < STEPS.length - 1 ? (
-              <Button
-                onClick={handleNext}
-                disabled={!canProceed()}
-                className="gap-2"
-              >
-                Next
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button
-                onClick={handleCheckout}
-                disabled={saving || !canProceed()}
-                className="gap-2"
-              >
-                {saving ? (
-                  "Saving..."
-                ) : (
-                  <>
-                    <ShoppingCart className="h-4 w-4" />
-                    Checkout — {tier ? `$${(tier === "basic" ? 29 : tier === "premium" ? 49 : 79)}` : ""}
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
+          ) : (
+            <Button
+              onClick={handleCheckout}
+              disabled={saving || !canProceed()}
+              className="gap-2"
+            >
+              {saving ? (
+                "Saving..."
+              ) : (
+                <>
+                  <ShoppingCart className="h-4 w-4" />
+                  Checkout — {tier ? `$${(tier === "basic" ? 29 : tier === "premium" ? 49 : 79)}` : ""}
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
 

@@ -5,26 +5,17 @@ import { useGameStore } from "@/lib/game-store";
 import { generateText } from "@/lib/ai-helpers";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { AIGenerateButton } from "@/components/ui/ai-generate-button";
-import { Palette, Lightbulb, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useState } from "react";
 
-const THEME_SUGGESTIONS = [
-  "Our Family Vacation 2026",
-  "Zombie Apocalypse Office Edition",
-  "Backyard BBQ Championship",
-  "College Reunion: The Reckoning",
-  "Intergalactic Pizza Party",
-  "Haunted Holiday House",
-  "Around the World in 80 Snacks",
-  "The Great Roommate Wars",
-];
-
 export function StepTheme() {
-  const { gameName, theme, setGameName, setTheme, baseGame, acceptedRules } = useGameStore();
+  const { gameName, theme, setGameName, setTheme, baseGame, acceptedRules, photos } = useGameStore();
   const [generating, setGenerating] = useState(false);
+
+  const photoContext = photos.length > 0
+    ? `The user has uploaded ${photos.length} photo(s) named: ${photos.map((p) => p.name).join(", ")}. Use the photo names as inspiration for personalizing the theme.`
+    : "";
 
   const handleGenerateBoth = async () => {
     setGenerating(true);
@@ -35,12 +26,14 @@ export function StepTheme() {
           baseGame: baseGame || "board game",
           theme: theme || undefined,
           rules: acceptedRules,
+          photoContext: photoContext || undefined,
         }),
         generateText({
           field: "description",
           baseGame: baseGame || "board game",
           gameName: gameName || undefined,
           rules: acceptedRules,
+          photoContext: photoContext || undefined,
         }),
       ]);
       if (nameResult) setGameName(nameResult);
@@ -57,7 +50,7 @@ export function StepTheme() {
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Name & Theme</h2>
         <p className="text-gray-500 mt-1">
-          Give your game a name and theme. This drives the AI-generated art, copy, and overall vibe.
+          Give your game a name and theme. This drives the generated art, copy, and overall vibe.
         </p>
       </div>
 
@@ -70,7 +63,7 @@ export function StepTheme() {
         className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold text-lg flex items-center justify-center gap-3 shadow-lg shadow-violet-500/25 transition-all disabled:opacity-60"
       >
         <Sparkles className={`h-5 w-5 ${generating ? "animate-spin" : ""}`} />
-        {generating ? "Generating..." : "✨ Generate Name & Theme with AI"}
+        {generating ? "Generating..." : "✨ Generate Name & Theme"}
       </motion.button>
 
       <div className="space-y-5">
@@ -80,13 +73,14 @@ export function StepTheme() {
               Game Name
             </label>
             <AIGenerateButton
-              label="AI Generate"
+              label="Generate"
               onGenerate={() =>
                 generateText({
                   field: "title",
                   baseGame: baseGame || "board game",
                   theme,
                   rules: acceptedRules,
+                  photoContext: photoContext || undefined,
                 })
               }
               onResult={(text) => setGameName(text)}
@@ -106,7 +100,7 @@ export function StepTheme() {
               Theme Description
             </label>
             <AIGenerateButton
-              label="AI Generate"
+              label="Generate"
               onGenerate={() =>
                 generateText({
                   field: "description",
@@ -114,6 +108,7 @@ export function StepTheme() {
                   theme,
                   gameName,
                   rules: acceptedRules,
+                  photoContext: photoContext || undefined,
                 })
               }
               onResult={(text) => setTheme(text)}
@@ -127,63 +122,6 @@ export function StepTheme() {
           />
         </div>
       </div>
-
-      {/* Theme suggestions */}
-      <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-          <Lightbulb className="h-4 w-4 text-amber-500" />
-          Need inspiration? Try one of these:
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {THEME_SUGGESTIONS.map((suggestion) => (
-            <motion.button
-              key={suggestion}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                setTheme(suggestion);
-                if (!gameName) {
-                  setGameName(suggestion);
-                }
-              }}
-              className="group"
-            >
-              <Badge
-                variant="outline"
-                className="cursor-pointer hover:bg-violet-50 hover:border-violet-300 hover:text-violet-700 transition-all py-1.5 px-3"
-              >
-                {suggestion}
-              </Badge>
-            </motion.button>
-          ))}
-        </div>
-      </div>
-
-      {/* Preview card */}
-      {(gameName || theme) && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Card className="bg-gradient-to-br from-violet-50 to-indigo-50 border-violet-200">
-            <CardContent className="pt-5">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-500">
-                  <Palette className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <p className="font-bold text-gray-900">
-                    {gameName || "Your Game Name"}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-0.5">
-                    {theme || "Your theme will appear here..."}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
     </div>
   );
 }

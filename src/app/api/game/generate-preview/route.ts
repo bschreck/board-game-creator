@@ -15,22 +15,20 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { getCachedTextModel } = await import("@/lib/gemini");
-    const model = await getCachedTextModel();
+    const { cerebrasGenerate } = await import("@/lib/cerebras");
 
     const prompt = `Generate a detailed description of board game box cover art for a custom board game:
-    
+
 Base Game: ${baseGame}
 Theme: ${theme}
 Custom Rules: ${rules?.join(", ") || "Standard rules"}
 
-Describe a vibrant, professional board game box cover illustration. Include the game title themed around "${theme}", 
-describe game elements like the board, pieces, and cards in an appealing arrangement. 
+Describe a vibrant, professional board game box cover illustration. Include the game title themed around "${theme}",
+describe game elements like the board, pieces, and cards in an appealing arrangement.
 Style: Modern board game box art, colorful, inviting, professional quality.
 Keep it to 2-3 sentences.`;
 
-    const response = await model.generateContent(prompt);
-    const description = response.response.text()?.trim();
+    const description = await cerebrasGenerate(prompt);
 
     return NextResponse.json({ 
       description,
