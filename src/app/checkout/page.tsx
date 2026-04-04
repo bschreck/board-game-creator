@@ -173,7 +173,12 @@ function CheckoutContent() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Checkout</h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-3xl font-bold text-gray-900">Checkout</h1>
+          <Button variant="ghost" onClick={() => router.push("/create")} className="text-violet-600 hover:text-violet-700">
+            ← Edit Game
+          </Button>
+        </div>
         <p className="text-gray-500 mb-8">
           Almost there! Add your shipping info and complete your order.
         </p>
