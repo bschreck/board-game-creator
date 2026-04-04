@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession, signIn } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGameStore } from "@/lib/game-store";
@@ -33,12 +33,34 @@ const STEPS = [
   { id: "preview", label: "Preview & Package", icon: Eye },
 ];
 
-export default function CreatePage() {
+function CreatePageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
-  const { step, setStep, baseGame, gameName, tier, savePendingState, restorePendingState, clearPendingState } = useGameStore();
+  const { step, setStep, baseGame, gameName, tier, setBaseGame, setGameName, setTheme, savePendingState, restorePendingState, clearPendingState } = useGameStore();
   const [saving, setSaving] = useState(false);
   const restoredRef = useRef(false);
+  const loadedGameRef = useRef(false);
+
+  // Load existing game if gameId in URL
+  useEffect(() => {
+    if (loadedGameRef.current) return;
+    const gameId = searchParams.get("gameId");
+    if (!gameId || !session) return;
+    loadedGameRef.current = true;
+    
+    fetch(`/api/game?id=${gameId}`)
+      .then(r => r.json())
+      .then(data => {
+        const game = data.game || data.games?.[0];
+        if (game) {
+          if (game.baseGame) setBaseGame(game.baseGame);
+          if (game.name) setGameName(game.name);
+          if (game.theme) setTheme(game.theme);
+        }
+      })
+      .catch(() => {});
+  }, [searchParams, session, setBaseGame, setGameName, setTheme]);
 
   // Restore pending game state after auth redirect
   useEffect(() => {
@@ -245,5 +267,13 @@ export default function CreatePage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function CreatePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <CreatePageContent />
+    </Suspense>
   );
 }

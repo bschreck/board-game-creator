@@ -187,17 +187,30 @@ export default function DashboardPage() {
                             </div>
                             <div className="shrink-0 flex gap-2">
                               {game.status === "draft" && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    router.push(
-                                      `/checkout?gameId=${game.id}`
-                                    )
-                                  }
-                                >
-                                  Complete Order
-                                </Button>
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      router.push(
+                                        `/create?gameId=${game.id}`
+                                      )
+                                    }
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      router.push(
+                                        `/checkout?gameId=${game.id}`
+                                      )
+                                    }
+                                  >
+                                    Complete Order
+                                  </Button>
+                                </>
                               )}
                               {["ordered", "generating", "printing"].includes(game.status) && (
                                 <Button
