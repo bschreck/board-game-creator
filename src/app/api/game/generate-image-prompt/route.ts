@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   try {
     const { getGemini } = await import("@/lib/gemini");
     const genAI = getGemini();
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const prompt = promptFn({ baseGame, theme: theme || "", gameName: gameName || "", rules: rules || [] });
     const response = await model.generateContent(prompt);
     const text = response.response.text()?.trim();

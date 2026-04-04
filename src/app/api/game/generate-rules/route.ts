@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     try {
       const { getGemini } = await import("@/lib/gemini");
       const genAI = getGemini();
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const response = await model.generateContent(`You are a creative board game designer. Generate ONE fun, surprising rule mutation for ${baseGame}. 
         
 The rule should be a short, clear sentence that modifies the original game in a fun way. Be creative and funny.
