@@ -35,6 +35,21 @@ interface GeneratedArt {
   error?: string;
 }
 
+async function blobUrlToBase64(blobUrl: string): Promise<string | null> {
+  try {
+    const res = await fetch(blobUrl);
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 async function generateArtImage(params: {
   imageType: ArtType;
   baseGame: string;
@@ -42,6 +57,8 @@ async function generateArtImage(params: {
   gameName: string;
   rules: string[];
   referenceStyle?: string;
+  photoContext?: string;
+  referenceImages?: string[];
 }): Promise<GeneratedArt | null> {
   try {
     const res = await fetch("/api/game/generate-image", {
@@ -71,12 +88,10 @@ export function StepPreview() {
     boardPreview,
     setBoardPreview,
   } = useGameStore();
-  const [generating, setGenerating] = useState(false);
-  const [boardError, setBoardError] = useState("");
 
-  // Art generation state
+  // Art generation state - initialize board from store if available
   const [artImages, setArtImages] = useState<Record<ArtType, GeneratedArt | null>>({
-    board: null,
+    board: boardPreview ? { image: boardPreview } : null,
     card: null,
     "box-cover": null,
   });
@@ -97,6 +112,7 @@ export function StepPreview() {
 
   // PDF generation
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState("");
   const [pdfTemplate, setPdfTemplate] = useState<"modern" | "fantasy">("modern");
 
   const selectedGame = BASE_GAMES.find((g) => g.id === baseGame);
@@ -109,46 +125,41 @@ export function StepPreview() {
     setTier(validTierKeys[validTierKeys.length - 1] as "basic" | "premium" | "deluxe");
   }
 
-  const generatePreview = async () => {
-    setGenerating(true);
-    setBoardError("");
-    try {
-      const result = await generateArtImage({
-        imageType: "board",
-        baseGame: baseGame || "board game",
-        theme,
-        gameName,
-        rules: acceptedRules,
-      });
-      if (result?.image) {
-        setBoardPreview(result.image);
-      } else {
-        setBoardError(result?.error || "Failed to generate image. Please try again.");
-      }
-    } finally {
-      setGenerating(false);
-    }
-  };
+  const photoContext = photos.length > 0
+    ? `The user has uploaded ${photos.length} reference photo(s) named: ${photos.map((p) => p.name).join(", ")}. Incorporate visual elements, subjects, and style from these reference photos into the generated artwork.`
+    : "";
+
+  const getPhotoBase64 = useCallback(async (): Promise<string[]> => {
+    if (photos.length === 0) return [];
+    const results = await Promise.all(photos.map((p) => blobUrlToBase64(p.url)));
+    return results.filter((r): r is string => r !== null);
+  }, [photos]);
 
   const handleGenerateArt = useCallback(
     async (artType: ArtType) => {
       setArtLoading((prev) => ({ ...prev, [artType]: true }));
       try {
+        const referenceImages = await getPhotoBase64();
         const result = await generateArtImage({
           imageType: artType,
           baseGame: baseGame || "board game",
           theme,
           gameName,
           rules: acceptedRules,
+          photoContext: photoContext || undefined,
+          referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
         });
         if (result) {
           setArtImages((prev) => ({ ...prev, [artType]: result }));
+          if (artType === "board" && result.image) {
+            setBoardPreview(result.image);
+          }
         }
       } finally {
         setArtLoading((prev) => ({ ...prev, [artType]: false }));
       }
     },
-    [baseGame, theme, gameName, acceptedRules]
+    [baseGame, theme, gameName, acceptedRules, photoContext, getPhotoBase64, setBoardPreview]
   );
 
   // Copy style from one generated art to another
@@ -159,6 +170,7 @@ export function StepPreview() {
 
       setCopyStyleLoading((prev) => ({ ...prev, [targetType]: true }));
       try {
+        const referenceImages = await getPhotoBase64();
         // Describe the source style for the API to match
         const styleDesc = `Match the exact visual style, color palette, artistic technique, and aesthetic of the previously generated ${sourceType} art for this game. Maintain consistent branding and visual identity.`;
         const result = await generateArtImage({
@@ -168,15 +180,20 @@ export function StepPreview() {
           gameName,
           rules: acceptedRules,
           referenceStyle: styleDesc,
+          photoContext: photoContext || undefined,
+          referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
         });
         if (result) {
           setArtImages((prev) => ({ ...prev, [targetType]: result }));
+          if (targetType === "board" && result.image) {
+            setBoardPreview(result.image);
+          }
         }
       } finally {
         setCopyStyleLoading((prev) => ({ ...prev, [targetType]: false }));
       }
     },
-    [artImages, baseGame, theme, gameName, acceptedRules]
+    [artImages, baseGame, theme, gameName, acceptedRules, photoContext, getPhotoBase64, setBoardPreview]
   );
 
   const handleGenerateRulesBooklet = async () => {
@@ -188,6 +205,7 @@ export function StepPreview() {
         theme,
         gameName,
         rules: acceptedRules,
+        photoContext: photoContext || undefined,
       });
       if (text) setRulesBooklet(text);
     } finally {
@@ -197,6 +215,7 @@ export function StepPreview() {
 
   const handleGeneratePdf = async () => {
     setPdfLoading(true);
+    setPdfError("");
     try {
       const res = await fetch("/api/generate-rulebook", {
         method: "POST",
@@ -234,7 +253,7 @@ export function StepPreview() {
         }),
       });
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({ error: "PDF generation failed" }));
         throw new Error(err.error || "PDF generation failed");
       }
       const blob = await res.blob();
@@ -247,7 +266,9 @@ export function StepPreview() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (e) {
+      const msg = e instanceof Error ? e.message : "PDF generation failed";
       console.error("PDF generation error:", e);
+      setPdfError(msg);
     } finally {
       setPdfLoading(false);
     }
@@ -359,74 +380,6 @@ export function StepPreview() {
           </CardContent>
         </Card>
       )}
-
-      {/* Board Preview */}
-      <Card className="overflow-hidden">
-        <CardContent className="pt-5">
-          <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-3">
-            <Palette className="h-4 w-4 text-violet-500" />
-            Board Preview
-          </h3>
-          {boardPreview ? (
-            <div className="space-y-3">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="rounded-xl overflow-hidden border border-gray-200"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={boardPreview}
-                  alt="Board preview"
-                  className="w-full"
-                />
-              </motion.div>
-              {boardError && (
-                <div className="bg-red-50 rounded-lg p-4">
-                  <p className="text-sm text-red-700">{boardError}</p>
-                </div>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={generatePreview}
-                disabled={generating}
-                className="text-violet-600"
-              >
-                {generating ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                )}
-                Regenerate
-              </Button>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-10 rounded-xl bg-gray-50 border border-dashed border-gray-200">
-              <Button
-                onClick={generatePreview}
-                disabled={generating}
-                size="lg"
-              >
-                {generating ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Generating Preview...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Generate AI Board Preview
-                  </>
-                )}
-              </Button>
-              <p className="text-xs text-gray-400 mt-2">
-                Uses AI to create a preview of your game board
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* AI Art Generation */}
       <Card>
@@ -597,6 +550,11 @@ export function StepPreview() {
                 </Button>
               </div>
             </div>
+            {pdfError && (
+              <div className="bg-red-50 rounded-lg p-3 mt-3">
+                <p className="text-sm text-red-700">{pdfError}</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

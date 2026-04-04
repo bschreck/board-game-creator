@@ -10,10 +10,15 @@ function buildPrompt(
   baseGame: string,
   theme: string,
   rules: string[],
-  referenceStyle?: string
+  referenceStyle?: string,
+  photoContext?: string
 ): string {
   const styleDirective = referenceStyle
     ? `\nIMPORTANT STYLE DIRECTIVE: Match this exact visual style: ${referenceStyle}\nUse the same color palette, art style, line work, and overall aesthetic.`
+    : "";
+
+  const photoDirective = photoContext
+    ? `\nREFERENCE PHOTOS: ${photoContext}\nIncorporate the visual elements, subjects, and style from the attached reference photos into the artwork.`
     : "";
 
   const prompts: Record<ImageType, string> = {
@@ -21,14 +26,14 @@ function buildPrompt(
 Game: "${gameName}" based on ${baseGame}
 Theme: "${theme}"
 ${rules.length ? `Special gameplay elements: ${rules.slice(0, 3).join("; ")}` : ""}
-${styleDirective}
+${styleDirective}${photoDirective}
 
 Design a complete game board with themed spaces/track/grid, clear play areas, decorative borders, and space for tokens. Professional board game quality, vibrant colors, top-down view.`,
 
     card: `Generate a sample game card design for a custom board game:
 Game: "${gameName}" based on ${baseGame}
 Theme: "${theme}"
-${styleDirective}
+${styleDirective}${photoDirective}
 
 Design a professional card with a title area at top, thematic illustration in center, text area at bottom. Include a decorative border frame. Card game quality artwork, print-ready design.`,
 
@@ -36,7 +41,7 @@ Design a professional card with a title area at top, thematic illustration in ce
 Game: "${gameName}" based on ${baseGame}
 Theme: "${theme}"
 ${rules.length ? `Key features: ${rules.slice(0, 3).join("; ")}` : ""}
-${styleDirective}
+${styleDirective}${photoDirective}
 
 Design a vibrant, eye-catching box cover with the game title "${gameName}" prominently displayed, thematic illustration, player count (2-6), age rating (12+). Retail board game box art quality.`,
   };
@@ -44,20 +49,34 @@ Design a vibrant, eye-catching box cover with the game title "${gameName}" promi
   return prompts[imageType];
 }
 
-async function tryGeminiImageGen(prompt: string): Promise<string | null> {
+async function tryGeminiImageGen(prompt: string, referenceImages?: string[]): Promise<string | null> {
   const { getGemini } = await import("@/lib/gemini");
   const genAI = getGemini();
   const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-image-preview" });
 
+  // Build parts: text prompt + optional reference images
+  const parts: { text?: string; inlineData?: { data: string; mimeType: string } }[] = [
+    { text: prompt },
+  ];
+
+  if (referenceImages?.length) {
+    for (const dataUrl of referenceImages.slice(0, 3)) {
+      const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+      }
+    }
+  }
+
   const response = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    contents: [{ role: "user", parts }],
     generationConfig: {
       responseModalities: ["IMAGE", "TEXT"] as unknown as undefined,
     } as Record<string, unknown>,
   } as Parameters<typeof model.generateContent>[0]);
 
-  const parts = response.response.candidates?.[0]?.content?.parts || [];
-  for (const part of parts) {
+  const responseParts = response.response.candidates?.[0]?.content?.parts || [];
+  for (const part of responseParts) {
     const inlineData = (part as { inlineData?: { data: string; mimeType: string } }).inlineData;
     if (inlineData) {
       return `data:${inlineData.mimeType};base64,${inlineData.data}`;
@@ -68,13 +87,15 @@ async function tryGeminiImageGen(prompt: string): Promise<string | null> {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { imageType, baseGame, theme, gameName, rules, referenceStyle } = body as {
+  const { imageType, baseGame, theme, gameName, rules, referenceStyle, photoContext, referenceImages } = body as {
     imageType: ImageType;
     baseGame: string;
     theme?: string;
     gameName?: string;
     rules?: string[];
     referenceStyle?: string;
+    photoContext?: string;
+    referenceImages?: string[];
   };
 
   if (!imageType || !baseGame) {
@@ -87,8 +108,8 @@ export async function POST(req: NextRequest) {
 
   // Step 1: Try direct Gemini image generation with built-in prompt
   try {
-    const directPrompt = buildPrompt(imageType, name, baseGame, themeStr, rulesList, referenceStyle);
-    const image = await tryGeminiImageGen(directPrompt);
+    const directPrompt = buildPrompt(imageType, name, baseGame, themeStr, rulesList, referenceStyle, photoContext);
+    const image = await tryGeminiImageGen(directPrompt, referenceImages);
     if (image) {
       return NextResponse.json({ image });
     }
@@ -99,12 +120,13 @@ export async function POST(req: NextRequest) {
   // Step 2: Two-step approach - generate a detailed prompt via Cerebras, then use it with Gemini
   try {
     const { cerebrasGenerate } = await import("@/lib/cerebras");
+    const photoHint = photoContext ? ` The user provided reference photos: ${photoContext}. Incorporate their visual elements.` : "";
     const detailedPrompt = await cerebrasGenerate(
-      `Write a detailed, vivid image generation prompt for an AI image generator. The image should be ${imageType} art for a board game called "${name}" based on ${baseGame} with a "${themeStr}" theme.${referenceStyle ? ` Style: ${referenceStyle}` : ""} Respond with ONLY the prompt, no explanation. Make it detailed and specific about composition, colors, and style.`
+      `Write a detailed, vivid image generation prompt for an AI image generator. The image should be ${imageType} art for a board game called "${name}" based on ${baseGame} with a "${themeStr}" theme.${referenceStyle ? ` Style: ${referenceStyle}` : ""}${photoHint} Respond with ONLY the prompt, no explanation. Make it detailed and specific about composition, colors, and style.`
     );
 
     if (detailedPrompt) {
-      const image = await tryGeminiImageGen(detailedPrompt);
+      const image = await tryGeminiImageGen(detailedPrompt, referenceImages);
       if (image) {
         return NextResponse.json({ image });
       }

@@ -38,9 +38,10 @@ ${rules?.length ? `\nDo NOT suggest these rules (already used): ${rules.join("; 
 Respond with ONLY the rule text, nothing else. No quotes, no prefix.`,
   "card-text": ({ baseGame, theme }) =>
     `Generate a fun, thematic card text or flavor text for a custom ${baseGame} game card with the theme "${theme || "party"}". This should be 1-2 sentences that could appear on a game card. Respond with ONLY the text.`,
-  "rules-booklet": ({ baseGame, theme, gameName, rules }) =>
+  "rules-booklet": ({ baseGame, theme, gameName, rules, photoContext }) =>
     `Write a concise rules summary for a custom board game called "${gameName || "Custom Game"}" based on ${baseGame} with theme "${theme || "custom"}".
 ${rules?.length ? `Custom rule modifications:\n${rules.map((r, i) => `${i + 1}. ${r}`).join("\n")}` : ""}
+${photoContext ? `The players provided reference photos: ${photoContext}. Reference these in the flavor text where appropriate.` : ""}
 Write 3-5 short paragraphs covering: game objective, setup, turn structure, winning conditions, and any custom rules. Keep it engaging and clear. Respond with ONLY the rules text.`,
 };
 

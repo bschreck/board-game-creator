@@ -62,6 +62,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [expandedGame, setExpandedGame] = useState<string | null>(null);
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
@@ -82,13 +83,17 @@ export default function DashboardPage() {
 
   const handleDownloadPdf = async (gameId: string, gameName: string) => {
     setPdfLoadingId(gameId);
+    setPdfError(null);
     try {
       const res = await fetch("/api/generate-rulebook", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ gameId, template: "modern" }),
       });
-      if (!res.ok) throw new Error("PDF generation failed");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "PDF generation failed" }));
+        throw new Error(err.error || "PDF generation failed");
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -99,7 +104,9 @@ export default function DashboardPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (e) {
+      const msg = e instanceof Error ? e.message : "PDF generation failed";
       console.error("PDF generation error:", e);
+      setPdfError(msg);
     } finally {
       setPdfLoadingId(null);
     }
@@ -164,6 +171,11 @@ export default function DashboardPage() {
               </Card>
             ) : (
               <div className="space-y-4">
+                {pdfError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p className="text-sm text-red-700">PDF error: {pdfError}</p>
+                  </div>
+                )}
                 {games.map((game, i) => {
                   const baseGameInfo = BASE_GAMES.find(
                     (g) => g.id === game.baseGame

@@ -42,18 +42,24 @@ export async function POST(req: NextRequest) {
     rulebookData = gameToRulebookData(game);
   }
 
-  const html = renderTemplate(rulebookData, template);
-  const pdfBuffer = await renderPdf(html);
+  try {
+    const html = renderTemplate(rulebookData, template);
+    const pdfBuffer = await renderPdf(html);
 
-  const filename = `${slugify(rulebookData.title)}-rulebook.pdf`;
+    const filename = `${slugify(rulebookData.title)}-rulebook.pdf`;
 
-  return new NextResponse(new Uint8Array(pdfBuffer), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
-      "Content-Length": String(pdfBuffer.length),
-    },
-  });
+    return new NextResponse(new Uint8Array(pdfBuffer), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Length": String(pdfBuffer.length),
+      },
+    });
+  } catch (e) {
+    console.error("PDF rendering failed:", e);
+    const message = e instanceof Error ? e.message : "PDF rendering failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 function slugify(text: string): string {
