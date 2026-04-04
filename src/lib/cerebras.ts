@@ -14,7 +14,7 @@ export function getCerebrasClient(): OpenAI {
   return _client;
 }
 
-const MODEL = "glm-4.7";
+const MODEL = "zai-glm-4.7";
 
 export async function cerebrasGenerate(prompt: string): Promise<string> {
   const client = getCerebrasClient();
