@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BoardCraft — AI-Powered Custom Board Game Creator
+
+Create personalized physical board games with AI. Upload your photos, pick a classic game, customize the rules with wild twists, and get a professionally printed game shipped to your door.
+
+## Features
+
+- **Game Creator Wizard** — Multi-step flow: pick a base game, customize rules, upload photos, set theme, preview
+- **Rule Randomizer** — "Shake It Up" button suggests fun rule mutations (accept/reject)
+- **AI Board Preview** — Canvas-generated preview of your custom board layout
+- **Photo Integration** — Drag-and-drop photo upload for game cards, board spaces, and pieces
+- **Gift Mode** — Ship to multiple addresses for holidays and birthdays
+- **Stripe Checkout** — Test mode payments with 3 pricing tiers ($29/$49/$79)
+- **Dashboard** — View and manage past game orders with status tracking
+- **Auth** — Demo credentials + Google OAuth via NextAuth
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router), TypeScript, Tailwind CSS v4
+- **UI**: Custom Shadcn-style components, Framer Motion animations
+- **Auth**: NextAuth.js with Prisma adapter
+- **Database**: Prisma ORM + SQLite (swap to Postgres for production)
+- **Payments**: Stripe Checkout (test mode)
+- **State**: Zustand for wizard state management
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your API keys
+
+# Push database schema
+npm run db:push
+
+# Start dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Demo Login
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Use any email (e.g., `demo@boardcraft.com`) with the Demo Account provider — no password needed.
 
-## Learn More
+## Environment Variables
 
-To learn more about Next.js, take a look at the following resources:
+See `.env.example` for all required variables:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `DATABASE_URL` — SQLite connection string (default: `file:./dev.db`)
+- `NEXTAUTH_SECRET` — Session encryption key
+- `STRIPE_SECRET_KEY` / `STRIPE_PUBLISHABLE_KEY` — Stripe test mode keys
+- `OPENAI_API_KEY` — For AI-generated content (optional for demo)
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — Google OAuth (optional)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploy to Vercel
 
-## Deploy on Vercel
+1. Push to GitHub
+2. Import to Vercel
+3. Add environment variables in Vercel dashboard
+4. For production, swap SQLite to a hosted database (Vercel Postgres, PlanetScale, etc.)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Project Structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/
+│   ├── page.tsx              # Landing page
+│   ├── create/page.tsx       # Game creator wizard
+│   ├── checkout/page.tsx     # Checkout with shipping & gift mode
+│   ├── dashboard/page.tsx    # User's game orders
+│   ├── order/success/        # Order confirmation
+│   ├── auth/signin/          # Sign-in page
+│   └── api/
+│       ├── auth/             # NextAuth
+│       ├── game/             # Game CRUD + rule generation
+│       └── stripe/           # Checkout sessions + webhooks
+├── components/
+│   ├── ui/                   # Reusable UI components
+│   ├── wizard/               # Wizard step components
+│   ├── navbar.tsx
+│   └── footer.tsx
+└── lib/
+    ├── auth.ts               # NextAuth config
+    ├── prisma.ts             # Prisma client singleton
+    ├── stripe.ts             # Stripe client + pricing config
+    ├── game-data.ts          # Base games + rule mutations
+    ├── game-store.ts         # Zustand wizard state
+    └── utils.ts              # Tailwind cn() helper
+```
