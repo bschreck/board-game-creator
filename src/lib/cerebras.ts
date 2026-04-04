@@ -14,14 +14,17 @@ export function getCerebrasClient(): OpenAI {
   return _client;
 }
 
-const MODEL = "zai-glm-4.7";
+// llama3.1-8b for fast simple generation, zai-glm-4.7 for complex reasoning
+const FAST_MODEL = "llama3.1-8b";
+const REASONING_MODEL = "zai-glm-4.7";
 
-export async function cerebrasGenerate(prompt: string): Promise<string> {
+export async function cerebrasGenerate(prompt: string, useReasoning = false): Promise<string> {
   const client = getCerebrasClient();
+  const model = useReasoning ? REASONING_MODEL : FAST_MODEL;
   const response = await client.chat.completions.create({
-    model: MODEL,
+    model,
     messages: [{ role: "user", content: prompt }],
-    max_completion_tokens: 4096,
+    max_completion_tokens: 2048,
   });
   return response.choices[0]?.message?.content?.trim() || "";
 }

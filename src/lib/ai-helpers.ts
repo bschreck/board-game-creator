@@ -12,10 +12,14 @@ export async function generateText(params: {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error("generateText failed:", res.status, await res.text().catch(() => ""));
+      return null;
+    }
     const data = await res.json();
     return data.text || null;
-  } catch {
+  } catch (e) {
+    console.error("generateText error:", e);
     return null;
   }
 }
