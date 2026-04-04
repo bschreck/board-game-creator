@@ -27,11 +27,6 @@ export default function ContactPage() {
             <p className="text-sm text-gray-500">support@boardcraft.com</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
-            <MessageSquare className="h-6 w-6 text-violet-500 mx-auto mb-3" />
-            <h3 className="font-semibold text-gray-900 mb-1">Live Chat</h3>
-            <p className="text-sm text-gray-500">Available Mon-Fri, 9am-5pm PT</p>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
             <Clock className="h-6 w-6 text-violet-500 mx-auto mb-3" />
             <h3 className="font-semibold text-gray-900 mb-1">Response Time</h3>
             <p className="text-sm text-gray-500">Within 24 hours</p>
