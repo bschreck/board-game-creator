@@ -37,6 +37,7 @@ interface GiftAddress {
   city: string;
   state: string;
   zip: string;
+  quantity: number;
 }
 
 function CheckoutContent() {
@@ -93,8 +94,8 @@ function CheckoutContent() {
     ? getTierPrice(game.tier as PricingTier, gameData?.category)
     : getTierPrice("premium");
 
-  const extraCopies = giftAddresses.length;
-  const totalCopies = quantity + extraCopies;
+  const giftCopies = giftAddresses.reduce((sum, a) => sum + a.quantity, 0);
+  const totalCopies = quantity + giftCopies;
   const bulkDiscount = getBulkDiscount(totalCopies);
   const unitPrice = getDiscountedUnitPrice(tierInfo.price, totalCopies);
   const total = unitPrice * totalCopies;
@@ -103,7 +104,7 @@ function CheckoutContent() {
   const addGiftAddress = () => {
     setGiftAddresses([
       ...giftAddresses,
-      { name: "", address: "", city: "", state: "", zip: "" },
+      { name: "", address: "", city: "", state: "", zip: "", quantity: 1 },
     ]);
   };
 
@@ -223,35 +224,45 @@ function CheckoutContent() {
                   </div>
                 </div>
 
-                {/* Bulk discount tiers */}
-                {quantity > 1 && (
-                  <div className="bg-emerald-50 rounded-lg p-4 space-y-2">
-                    <div className="flex items-center gap-2 text-sm font-medium text-emerald-800">
-                      <Users className="h-4 w-4" />
-                      Volume Discount Applied: {bulkDiscount.discountPct}% off
-                    </div>
-                    <div className="grid grid-cols-5 gap-1.5">
-                      {BULK_TIERS.map((bt) => (
-                        <div
-                          key={bt.minQty}
-                          className={`text-center py-1.5 px-1 rounded text-xs ${
-                            bt.minQty === bulkDiscount.minQty
-                              ? "bg-emerald-200 text-emerald-900 font-semibold"
-                              : "bg-white text-gray-500"
-                          }`}
-                        >
-                          <div>{bt.label}</div>
-                          {bt.discountPct > 0 && (
-                            <div className="font-medium">{bt.discountPct}% off</div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs text-emerald-700">
-                      Perfect for events, parties, corporate gifts
-                    </p>
+                {/* Bulk discount tiers - always visible and clickable */}
+                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <Users className="h-4 w-4" />
+                    {bulkDiscount.discountPct > 0
+                      ? `Volume Discount: ${bulkDiscount.discountPct}% off`
+                      : "Volume Discounts Available"}
                   </div>
-                )}
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {BULK_TIERS.map((bt) => (
+                      <button
+                        key={bt.minQty}
+                        type="button"
+                        onClick={() => setQuantity(bt.minQty)}
+                        className={`text-center py-2 px-1 rounded text-xs cursor-pointer transition-all ${
+                          bt.minQty === bulkDiscount.minQty
+                            ? "bg-emerald-200 text-emerald-900 font-semibold ring-2 ring-emerald-400"
+                            : "bg-white text-gray-500 hover:bg-emerald-50 hover:text-emerald-700 border border-gray-200"
+                        }`}
+                      >
+                        <div className="font-medium">{bt.label}</div>
+                        {bt.discountPct > 0 ? (
+                          <div className="text-emerald-600 font-semibold">{bt.discountPct}% off</div>
+                        ) : (
+                          <div className="text-gray-400">Full price</div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  {bulkDiscount.discountPct > 0 && (
+                    <div className="flex justify-between text-sm pt-1">
+                      <span className="text-gray-500">Per copy: <span className="line-through">{tierInfo.display}</span> <span className="text-emerald-600 font-semibold">${(unitPrice / 100).toFixed(2)}</span></span>
+                      <span className="text-gray-700 font-medium">Total: ${(total / 100).toFixed(2)}</span>
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Click a tier to set quantity. Perfect for events, parties, corporate gifts.
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
@@ -348,7 +359,7 @@ function CheckoutContent() {
               {giftMode && (
                 <CardContent className="space-y-4">
                   <p className="text-sm text-gray-500">
-                    Ship additional copies to friends and family. Gift copies
+                    Ship copies to friends and family. Gift copies
                     benefit from bulk pricing too!
                   </p>
                   {giftAddresses.map((addr, i) => (
@@ -402,6 +413,37 @@ function CheckoutContent() {
                           }
                         />
                       </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 mb-1.5 block">
+                          Copies to this address
+                        </label>
+                        <div className="flex items-center border border-gray-200 rounded-lg w-fit">
+                          <button
+                            onClick={() => {
+                              const updated = [...giftAddresses];
+                              updated[i] = { ...updated[i], quantity: Math.max(1, addr.quantity - 1) };
+                              setGiftAddresses(updated);
+                            }}
+                            className="p-2 hover:bg-gray-100 rounded-l-lg transition-colors"
+                            disabled={addr.quantity <= 1}
+                          >
+                            <Minus className="h-3.5 w-3.5 text-gray-600" />
+                          </button>
+                          <span className="px-4 py-1.5 text-sm font-semibold min-w-[2.5rem] text-center">
+                            {addr.quantity}
+                          </span>
+                          <button
+                            onClick={() => {
+                              const updated = [...giftAddresses];
+                              updated[i] = { ...updated[i], quantity: addr.quantity + 1 };
+                              setGiftAddresses(updated);
+                            }}
+                            className="p-2 hover:bg-gray-100 rounded-r-lg transition-colors"
+                          >
+                            <Plus className="h-3.5 w-3.5 text-gray-600" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                   <Button
@@ -412,6 +454,25 @@ function CheckoutContent() {
                     <Plus className="h-4 w-4 mr-2" />
                     Add Another Gift Address
                   </Button>
+
+                  {/* Shipping summary */}
+                  {giftAddresses.length > 0 && (
+                    <div className="bg-violet-50 rounded-lg p-4 space-y-1.5">
+                      <p className="text-sm font-medium text-violet-900">Shipping Summary</p>
+                      <p className="text-xs text-violet-700">
+                        {quantity} {quantity === 1 ? "copy" : "copies"} to your address
+                      </p>
+                      {giftAddresses.map((addr, i) => (
+                        <p key={i} className="text-xs text-violet-700">
+                          {addr.quantity} {addr.quantity === 1 ? "copy" : "copies"} to {addr.name || `Gift #${i + 1}`}
+                          {addr.city ? `, ${addr.city}` : ""}
+                        </p>
+                      ))}
+                      <p className="text-xs font-semibold text-violet-900 pt-1 border-t border-violet-200">
+                        Total: {totalCopies} {totalCopies === 1 ? "copy" : "copies"}
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               )}
             </Card>
@@ -454,9 +515,9 @@ function CheckoutContent() {
                       )}
                     </span>
                   </div>
-                  {extraCopies > 0 && (
+                  {giftCopies > 0 && (
                     <div className="flex justify-between text-xs text-gray-400">
-                      <span>({quantity} ordered + {extraCopies} gift)</span>
+                      <span>({quantity} to you + {giftCopies} gift)</span>
                     </div>
                   )}
                   {savings > 0 && (

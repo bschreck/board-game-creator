@@ -33,8 +33,11 @@ export async function POST(req: NextRequest) {
   }
 
   const quantity = body.quantity || 1;
-  const extraCopies = giftAddresses?.length || 0;
-  const totalCopies = quantity + extraCopies;
+  const giftCopies = (giftAddresses || []).reduce(
+    (sum: number, a: { quantity?: number }) => sum + (a.quantity || 1),
+    0
+  );
+  const totalCopies = quantity + giftCopies;
   const unitPrice = getDiscountedUnitPrice(tierInfo.price, totalCopies);
   const totalAmount = unitPrice * totalCopies;
 

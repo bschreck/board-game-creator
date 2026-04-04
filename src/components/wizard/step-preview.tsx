@@ -31,7 +31,7 @@ type ArtType = "board" | "card" | "box-cover";
 
 interface GeneratedArt {
   image: string | null;
-  description?: string;
+  error?: string;
 }
 
 async function generateArtImage(params: {
@@ -48,10 +48,13 @@ async function generateArtImage(params: {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params),
     });
-    if (!res.ok) return null;
-    return await res.json();
+    const data = await res.json();
+    if (!res.ok) {
+      return { image: null, error: data.error || "Generation failed" };
+    }
+    return data;
   } catch {
-    return null;
+    return { image: null, error: "Network error. Please try again." };
   }
 }
 
@@ -68,7 +71,7 @@ export function StepPreview() {
     setBoardPreview,
   } = useGameStore();
   const [generating, setGenerating] = useState(false);
-  const [boardDescription, setBoardDescription] = useState("");
+  const [boardError, setBoardError] = useState("");
 
   // Art generation state
   const [artImages, setArtImages] = useState<Record<ArtType, GeneratedArt | null>>({
@@ -103,7 +106,7 @@ export function StepPreview() {
 
   const generatePreview = async () => {
     setGenerating(true);
-    setBoardDescription("");
+    setBoardError("");
     try {
       const result = await generateArtImage({
         imageType: "board",
@@ -114,29 +117,8 @@ export function StepPreview() {
       });
       if (result?.image) {
         setBoardPreview(result.image);
-      } else if (result?.description) {
-        setBoardDescription(result.description);
-        // Generate a styled placeholder with the description
-        const canvas = document.createElement("canvas");
-        canvas.width = 800;
-        canvas.height = 600;
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          const gradient = ctx.createLinearGradient(0, 0, 800, 600);
-          gradient.addColorStop(0, "#7c3aed");
-          gradient.addColorStop(0.5, "#4f46e5");
-          gradient.addColorStop(1, "#2563eb");
-          ctx.fillStyle = gradient;
-          ctx.fillRect(0, 0, 800, 600);
-          ctx.fillStyle = "white";
-          ctx.font = "bold 28px Inter, system-ui, sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText(gameName || "Your Custom Game", 400, 280);
-          ctx.font = "16px Inter, system-ui, sans-serif";
-          ctx.fillStyle = "#c4b5fd";
-          ctx.fillText("AI Preview - See description below", 400, 320);
-        }
-        setBoardPreview(canvas.toDataURL("image/png"));
+      } else {
+        setBoardError(result?.error || "Failed to generate image. Please try again.");
       }
     } finally {
       setGenerating(false);
@@ -336,10 +318,9 @@ export function StepPreview() {
                   className="w-full"
                 />
               </motion.div>
-              {boardDescription && (
-                <div className="bg-violet-50 rounded-lg p-4">
-                  <p className="text-sm text-violet-800 font-medium mb-1">AI Vision:</p>
-                  <p className="text-sm text-violet-700">{boardDescription}</p>
+              {boardError && (
+                <div className="bg-red-50 rounded-lg p-4">
+                  <p className="text-sm text-red-700">{boardError}</p>
                 </div>
               )}
               <Button
@@ -418,13 +399,13 @@ export function StepPreview() {
                         className="w-full aspect-square object-cover"
                       />
                     </motion.div>
-                  ) : art?.description ? (
-                    <div className="rounded-xl border border-gray-200 bg-violet-50 p-4">
+                  ) : art?.error ? (
+                    <div className="rounded-xl border border-red-200 bg-red-50 p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <Icon className="h-3.5 w-3.5 text-violet-600" />
-                        <span className="text-xs font-medium text-violet-900">{label}</span>
+                        <Icon className="h-3.5 w-3.5 text-red-600" />
+                        <span className="text-xs font-medium text-red-900">{label}</span>
                       </div>
-                      <p className="text-xs text-violet-700">{art.description}</p>
+                      <p className="text-xs text-red-700">{art.error}</p>
                     </div>
                   ) : null}
 
@@ -450,8 +431,7 @@ export function StepPreview() {
                   </Button>
 
                   {/* Copy Style buttons - show when other art types have been generated */}
-                  {!art?.image &&
-                    generatedTypes.length > 0 &&
+                  {generatedTypes.length > 0 &&
                     generatedTypes.filter((t) => t !== key).map((sourceType) => (
                       <Button
                         key={sourceType}
@@ -527,9 +507,13 @@ export function StepPreview() {
       {/* Tier selection */}
       <div>
         <h3 className="font-semibold text-gray-900 mb-4">Choose Your Package</h3>
-        {selectedGame?.category === "Cards" && (
+        {selectedGame?.category === "Cards" ? (
           <p className="text-sm text-gray-500 mb-3">
             Card games include two tiers optimized for card-based gameplay.
+          </p>
+        ) : (
+          <p className="text-sm text-gray-500 mb-3">
+            Custom game pieces available for select games.
           </p>
         )}
         <div className={`grid grid-cols-1 gap-4 ${availableTiers.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
