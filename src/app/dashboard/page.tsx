@@ -23,6 +23,7 @@ import {
   Dice5,
   Eye,
   Sparkles,
+  FileDown,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -60,6 +61,7 @@ export default function DashboardPage() {
   const [games, setGames] = useState<GameWithOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedGame, setExpandedGame] = useState<string | null>(null);
+  const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
@@ -77,6 +79,31 @@ export default function DashboardPage() {
       })
       .catch(() => setLoading(false));
   }, [session]);
+
+  const handleDownloadPdf = async (gameId: string, gameName: string) => {
+    setPdfLoadingId(gameId);
+    try {
+      const res = await fetch("/api/generate-rulebook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gameId, template: "modern" }),
+      });
+      if (!res.ok) throw new Error("PDF generation failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${gameName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-rulebook.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("PDF generation error:", e);
+    } finally {
+      setPdfLoadingId(null);
+    }
+  };
 
   if (authStatus === "loading" || loading) {
     return (
@@ -222,6 +249,19 @@ export default function DashboardPage() {
                                   {expandedGame === game.id ? "Hide" : "View"} Progress
                                 </Button>
                               )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDownloadPdf(game.id, game.name)}
+                                disabled={pdfLoadingId === game.id}
+                              >
+                                {pdfLoadingId === game.id ? (
+                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                ) : (
+                                  <FileDown className="h-4 w-4 mr-1" />
+                                )}
+                                {pdfLoadingId === game.id ? "Generating..." : "Rulebook PDF"}
+                              </Button>
                               {game.order?.trackingNumber && (
                                 <Button variant="outline" size="sm">
                                   <Truck className="h-4 w-4 mr-1" />

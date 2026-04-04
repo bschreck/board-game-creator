@@ -25,6 +25,7 @@ import {
   RefreshCw,
   Layers,
   Box,
+  FileDown,
 } from "lucide-react";
 
 type ArtType = "board" | "card" | "box-cover";
@@ -93,6 +94,10 @@ export function StepPreview() {
   // Rules booklet
   const [rulesBooklet, setRulesBooklet] = useState("");
   const [rulesLoading, setRulesLoading] = useState(false);
+
+  // PDF generation
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfTemplate, setPdfTemplate] = useState<"modern" | "fantasy">("modern");
 
   const selectedGame = BASE_GAMES.find((g) => g.id === baseGame);
   const availableTiers = getAvailableTiers(selectedGame?.category);
@@ -187,6 +192,64 @@ export function StepPreview() {
       if (text) setRulesBooklet(text);
     } finally {
       setRulesLoading(false);
+    }
+  };
+
+  const handleGeneratePdf = async () => {
+    setPdfLoading(true);
+    try {
+      const res = await fetch("/api/generate-rulebook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gameData: {
+            title: gameName || "Untitled Game",
+            subtitle: `A custom ${baseGame || "board game"} experience`,
+            baseGame: baseGame || "board game",
+            theme: theme || undefined,
+            playerCount: "2-6",
+            playTime: "30-60 min",
+            age: "10",
+            sections: [
+              {
+                heading: "Overview",
+                body: `Welcome to ${gameName}! This is a custom version of ${baseGame}${theme ? `, themed around ${theme}` : ""}. The core gameplay follows the classic ${baseGame} rules with exciting custom twists.`,
+              },
+              {
+                heading: "Setup",
+                body: `Set up the game according to the standard ${baseGame} rules. Place the board in the center of the table, shuffle all cards, and distribute starting pieces to each player.`,
+              },
+              {
+                heading: "How to Play",
+                body: `On your turn, follow the standard ${baseGame} turn structure. Players take turns clockwise. Remember to apply any custom rules that modify the base gameplay.`,
+              },
+              {
+                heading: "Winning",
+                body: `The winner is determined according to standard ${baseGame} victory conditions, with any modifications from the custom rules applied.`,
+              },
+            ],
+            customRules: acceptedRules,
+          },
+          template: pdfTemplate,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "PDF generation failed");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(gameName || "game").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-rulebook.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("PDF generation error:", e);
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -501,6 +564,40 @@ export function StepPreview() {
               Generate a complete rules booklet for your custom game with AI.
             </p>
           )}
+
+          {/* PDF Rulebook Generator */}
+          <div className="border-t border-gray-100 pt-4 mt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-medium text-gray-900">Download as PDF</h4>
+                <p className="text-xs text-gray-500 mt-0.5">Generate a styled rulebook PDF</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={pdfTemplate}
+                  onChange={(e) => setPdfTemplate(e.target.value as "modern" | "fantasy")}
+                  className="text-xs border border-gray-200 rounded-md px-2 py-1.5 text-gray-700 bg-white"
+                >
+                  <option value="modern">Modern</option>
+                  <option value="fantasy">Fantasy</option>
+                </select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-violet-600 border-violet-200 hover:bg-violet-50 gap-1.5"
+                  onClick={handleGeneratePdf}
+                  disabled={pdfLoading || !gameName}
+                >
+                  {pdfLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <FileDown className="h-3.5 w-3.5" />
+                  )}
+                  {pdfLoading ? "Generating..." : "Generate PDF"}
+                </Button>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
