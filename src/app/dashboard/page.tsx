@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BASE_GAMES } from "@/lib/game-data";
+import { GenerationProgress } from "@/components/generation-progress";
+import { AssetGallery } from "@/components/asset-gallery";
 import {
   Plus,
   Package,
@@ -19,6 +21,8 @@ import {
   Loader2,
   ArrowRight,
   Dice5,
+  Eye,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -42,7 +46,9 @@ interface GameWithOrder {
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "success" | "destructive"; icon: typeof Clock }> = {
   draft: { label: "Draft", variant: "secondary", icon: Clock },
   checkout: { label: "Checkout", variant: "default", icon: Package },
-  ordered: { label: "Processing", variant: "default", icon: Package },
+  ordered: { label: "Generating", variant: "default", icon: Sparkles },
+  generating: { label: "Generating Assets", variant: "default", icon: Sparkles },
+  printing: { label: "Printing", variant: "default", icon: Package },
   processing: { label: "Being Made", variant: "default", icon: Package },
   shipped: { label: "Shipped", variant: "success", icon: Truck },
   delivered: { label: "Delivered", variant: "success", icon: CheckCircle2 },
@@ -53,6 +59,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [games, setGames] = useState<GameWithOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedGame, setExpandedGame] = useState<string | null>(null);
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
@@ -192,6 +199,16 @@ export default function DashboardPage() {
                                   Complete Order
                                 </Button>
                               )}
+                              {["ordered", "generating", "printing"].includes(game.status) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setExpandedGame(expandedGame === game.id ? null : game.id)}
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  {expandedGame === game.id ? "Hide" : "View"} Progress
+                                </Button>
+                              )}
                               {game.order?.trackingNumber && (
                                 <Button variant="outline" size="sm">
                                   <Truck className="h-4 w-4 mr-1" />
@@ -200,6 +217,18 @@ export default function DashboardPage() {
                               )}
                             </div>
                           </div>
+                          {/* Expandable generation progress & assets */}
+                          {expandedGame === game.id && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="mt-4 pt-4 border-t border-gray-100 space-y-4"
+                            >
+                              <GenerationProgress gameId={game.id} />
+                              <AssetGallery gameId={game.id} />
+                            </motion.div>
+                          )}
                         </CardContent>
                       </Card>
                     </motion.div>

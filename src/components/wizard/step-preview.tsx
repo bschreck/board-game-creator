@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { AssetPreview } from "@/components/asset-preview";
 import {
   Check,
   Star,
@@ -375,6 +376,15 @@ export function StepPreview() {
           )}
         </CardContent>
       </Card>
+
+      {/* AI Asset Previews */}
+      <AssetPreview
+        gameName={gameName}
+        baseGame={baseGame || "board game"}
+        theme={theme}
+        rules={acceptedRules}
+        tier={tier}
+      />
 
       {/* Tier selection */}
       <div>

@@ -70,6 +70,45 @@ model Game {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   order         Order?
+  assets        GameAsset[]
+  generationJob GenerationJob?
+}
+
+model GameAsset {
+  id          String   @id @default(cuid())
+  gameId      String
+  game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  type        String   // rules-pdf, card, box-front, box-back, box-side, board, manual, token
+  name        String   // display name e.g. "Ace of Spades", "Box Front Cover"
+  url         String   // Vercel Blob or data URL
+  format      String   @default("png") // png, pdf
+  width       Int?     // pixels
+  height      Int?     // pixels
+  dpi         Int      @default(300)
+  metadata    String   @default("{}") // JSON: bleed, safe zone, card index, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([gameId, type])
+}
+
+model GenerationJob {
+  id          String   @id @default(cuid())
+  gameId      String   @unique
+  game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  orderId     String?
+  status      String   @default("pending") // pending, generating, uploading, submitting, complete, failed
+  phase       String   @default("queued")  // queued, rules, cards, box-art, board, manual, print-submit
+  progress    Int      @default(0)         // 0-100
+  totalSteps  Int      @default(0)
+  currentStep Int      @default(0)
+  error       String?
+  tgcGameId   String?  // The Game Crafter game ID
+  tgcOrderId  String?  // The Game Crafter order/receipt ID
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Order {
@@ -90,6 +129,8 @@ model Order {
   shippingCountry String   @default("US")
   giftAddresses   String   @default("[]")
   trackingNumber  String?
+  tgcReceiptId    String?  // The Game Crafter receipt ID
+  tgcShipmentId   String?  // The Game Crafter shipment ID
   status          String   @default("processing")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

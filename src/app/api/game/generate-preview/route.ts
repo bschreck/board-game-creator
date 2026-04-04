@@ -15,9 +15,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { getGemini } = await import("@/lib/gemini");
-    const genAI = getGemini();
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const { getCachedTextModel } = await import("@/lib/gemini");
+    const model = await getCachedTextModel();
 
     const prompt = `Generate a detailed description of board game box cover art for a custom board game:
     
