@@ -4,16 +4,18 @@ import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGameStore } from "@/lib/game-store";
 import { RULE_MUTATIONS } from "@/lib/game-data";
+import { generateText } from "@/lib/ai-helpers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Shuffle, Check, X, Sparkles, Trash2 } from "lucide-react";
+import { Shuffle, Check, X, Sparkles, Trash2, Wand2, Loader2 } from "lucide-react";
 
 export function StepCustomizeRules() {
-  const { baseGame, acceptedRules, rejectedRules, acceptRule, rejectRule, removeRule } =
+  const { baseGame, theme, acceptedRules, rejectedRules, acceptRule, rejectRule, removeRule } =
     useGameStore();
   const [currentSuggestion, setCurrentSuggestion] = useState<string | null>(null);
   const [shaking, setShaking] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const allRules = baseGame ? RULE_MUTATIONS[baseGame] || [] : [];
   const availableRules = allRules.filter(
@@ -29,6 +31,24 @@ export function StepCustomizeRules() {
       setShaking(false);
     }, 600);
   }, [availableRules]);
+
+  const suggestAIRule = useCallback(async () => {
+    if (!baseGame) return;
+    setAiLoading(true);
+    try {
+      const rule = await generateText({
+        field: "rule",
+        baseGame,
+        theme,
+        rules: [...acceptedRules, ...rejectedRules],
+      });
+      if (rule) {
+        setCurrentSuggestion(rule);
+      }
+    } finally {
+      setAiLoading(false);
+    }
+  }, [baseGame, theme, acceptedRules, rejectedRules]);
 
   const handleAccept = () => {
     if (currentSuggestion) {
@@ -53,8 +73,8 @@ export function StepCustomizeRules() {
         </p>
       </div>
 
-      {/* Shake it up button */}
-      <div className="flex justify-center">
+      {/* Shake it up + AI generate buttons */}
+      <div className="flex justify-center gap-3">
         <motion.div animate={shaking ? { rotate: [0, -10, 10, -10, 10, 0] } : {}} transition={{ duration: 0.5 }}>
           <Button
             size="xl"
@@ -67,11 +87,25 @@ export function StepCustomizeRules() {
             <Sparkles className="h-4 w-4 ml-2" />
           </Button>
         </motion.div>
+        <Button
+          size="xl"
+          variant="outline"
+          onClick={suggestAIRule}
+          disabled={aiLoading}
+          className="text-violet-600 border-violet-200 hover:bg-violet-50"
+        >
+          {aiLoading ? (
+            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+          ) : (
+            <Wand2 className="h-5 w-5 mr-2" />
+          )}
+          {aiLoading ? "Generating..." : "AI Rule"}
+        </Button>
       </div>
 
       {availableRules.length === 0 && !currentSuggestion && (
         <p className="text-center text-sm text-gray-400">
-          You&apos;ve seen all available rule mutations! Remove some rejected rules to see them again.
+          You&apos;ve seen all available rule mutations! Remove some rejected rules to see them again, or try AI Rule for fresh ideas.
         </p>
       )}
 

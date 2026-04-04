@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useGameStore } from "@/lib/game-store";
+import { generateImagePrompt, generateText } from "@/lib/ai-helpers";
 import { PRICING } from "@/lib/stripe";
 import { BASE_GAMES } from "@/lib/game-data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Check,
   Star,
@@ -17,6 +19,9 @@ import {
   ScrollText,
   Camera,
   Palette,
+  Wand2,
+  Copy,
+  BookOpen,
 } from "lucide-react";
 
 export function StepPreview() {
@@ -32,21 +37,22 @@ export function StepPreview() {
     setBoardPreview,
   } = useGameStore();
   const [generating, setGenerating] = useState(false);
+  const [imagePrompts, setImagePrompts] = useState<Record<string, string>>({});
+  const [promptLoading, setPromptLoading] = useState<Record<string, boolean>>({});
+  const [rulesBooklet, setRulesBooklet] = useState("");
+  const [rulesLoading, setRulesLoading] = useState(false);
 
   const selectedGame = BASE_GAMES.find((g) => g.id === baseGame);
   const tierInfo = PRICING[tier];
 
   const generatePreview = async () => {
     setGenerating(true);
-    // Simulate AI generation (would call OpenAI API in production)
-    await new Promise((resolve) => setTimeout(resolve, 3000));
     // Generate a gradient-based preview placeholder
     const canvas = document.createElement("canvas");
     canvas.width = 800;
     canvas.height = 600;
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      // Background
       const gradient = ctx.createLinearGradient(0, 0, 800, 600);
       gradient.addColorStop(0, "#7c3aed");
       gradient.addColorStop(0.5, "#4f46e5");
@@ -54,12 +60,10 @@ export function StepPreview() {
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, 800, 600);
 
-      // Board outline
       ctx.strokeStyle = "#ffffff40";
       ctx.lineWidth = 3;
       ctx.strokeRect(60, 60, 680, 480);
 
-      // Grid lines
       ctx.strokeStyle = "#ffffff20";
       ctx.lineWidth = 1;
       for (let i = 1; i < 8; i++) {
@@ -75,7 +79,6 @@ export function StepPreview() {
         }
       }
 
-      // Title
       ctx.fillStyle = "white";
       ctx.font = "bold 36px Inter, system-ui, sans-serif";
       ctx.textAlign = "center";
@@ -85,7 +88,6 @@ export function StepPreview() {
       ctx.fillStyle = "#c4b5fd";
       ctx.fillText(theme || "Custom Theme", 400, 355);
 
-      // Corner labels
       ctx.font = "bold 14px Inter, system-ui, sans-serif";
       ctx.fillStyle = "#ffffff80";
       ctx.textAlign = "left";
@@ -97,12 +99,50 @@ export function StepPreview() {
     setGenerating(false);
   };
 
+  const handleGenerateImagePrompt = async (imageType: "board" | "card" | "box-cover") => {
+    setPromptLoading((prev) => ({ ...prev, [imageType]: true }));
+    try {
+      const prompt = await generateImagePrompt({
+        imageType,
+        baseGame: baseGame || "board game",
+        theme,
+        gameName,
+        rules: acceptedRules,
+      });
+      if (prompt) {
+        setImagePrompts((prev) => ({ ...prev, [imageType]: prompt }));
+      }
+    } finally {
+      setPromptLoading((prev) => ({ ...prev, [imageType]: false }));
+    }
+  };
+
+  const handleGenerateRulesBooklet = async () => {
+    setRulesLoading(true);
+    try {
+      const text = await generateText({
+        field: "rules-booklet",
+        baseGame: baseGame || "board game",
+        theme,
+        gameName,
+        rules: acceptedRules,
+      });
+      if (text) setRulesBooklet(text);
+    } finally {
+      setRulesLoading(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Preview & Package</h2>
         <p className="text-gray-500 mt-1">
-          Review your game, pick a package, and generate an AI preview of your board.
+          Review your game, generate AI art prompts, and pick a package.
         </p>
       </div>
 
@@ -232,6 +272,106 @@ export function StepPreview() {
                 Creates a preview of your game board layout
               </p>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* AI Image Prompt Generation */}
+      <Card>
+        <CardContent className="pt-5 space-y-4">
+          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+            <Wand2 className="h-4 w-4 text-violet-500" />
+            AI Art Prompts
+          </h3>
+          <p className="text-sm text-gray-500">
+            Generate detailed prompts for AI image generation tools. Use these with Midjourney, DALL-E, or other image generators.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {(
+              [
+                { key: "board", label: "Board Art" },
+                { key: "card", label: "Card Artwork" },
+                { key: "box-cover", label: "Box Cover" },
+              ] as const
+            ).map(({ key, label }) => (
+              <div key={key} className="space-y-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-violet-600 border-violet-200 hover:bg-violet-50"
+                  onClick={() => handleGenerateImagePrompt(key)}
+                  disabled={promptLoading[key]}
+                >
+                  {promptLoading[key] ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  {label}
+                </Button>
+                {imagePrompts[key] && (
+                  <div className="relative">
+                    <p className="text-xs text-gray-600 bg-gray-50 rounded-lg p-3 pr-8">
+                      {imagePrompts[key]}
+                    </p>
+                    <button
+                      onClick={() => copyToClipboard(imagePrompts[key])}
+                      className="absolute top-2 right-2 p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600"
+                      title="Copy to clipboard"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Rules Booklet */}
+      <Card>
+        <CardContent className="pt-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-violet-500" />
+              Rules Booklet
+            </h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-violet-600 hover:text-violet-700 hover:bg-violet-50 gap-1.5"
+              onClick={handleGenerateRulesBooklet}
+              disabled={rulesLoading}
+            >
+              {rulesLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Wand2 className="h-3.5 w-3.5" />
+              )}
+              {rulesLoading ? "Generating..." : "AI Generate"}
+            </Button>
+          </div>
+          {rulesBooklet ? (
+            <div className="relative">
+              <Textarea
+                value={rulesBooklet}
+                onChange={(e) => setRulesBooklet(e.target.value)}
+                rows={10}
+                className="text-sm"
+              />
+              <button
+                onClick={() => copyToClipboard(rulesBooklet)}
+                className="absolute top-2 right-2 p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600"
+                title="Copy to clipboard"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">
+              Generate a complete rules booklet for your custom game with AI.
+            </p>
           )}
         </CardContent>
       </Card>

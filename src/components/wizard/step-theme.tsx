@@ -2,10 +2,12 @@
 
 import { motion } from "framer-motion";
 import { useGameStore } from "@/lib/game-store";
+import { generateText } from "@/lib/ai-helpers";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AIGenerateButton } from "@/components/ui/ai-generate-button";
 import { Palette, Lightbulb } from "lucide-react";
 
 const THEME_SUGGESTIONS = [
@@ -20,7 +22,7 @@ const THEME_SUGGESTIONS = [
 ];
 
 export function StepTheme() {
-  const { gameName, theme, setGameName, setTheme, baseGame } = useGameStore();
+  const { gameName, theme, setGameName, setTheme, baseGame, acceptedRules } = useGameStore();
 
   return (
     <div className="space-y-6">
@@ -33,9 +35,23 @@ export function StepTheme() {
 
       <div className="space-y-5">
         <div>
-          <label className="text-sm font-medium text-gray-700 mb-1.5 block">
-            Game Name
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-sm font-medium text-gray-700">
+              Game Name
+            </label>
+            <AIGenerateButton
+              label="AI Generate"
+              onGenerate={() =>
+                generateText({
+                  field: "title",
+                  baseGame: baseGame || "board game",
+                  theme,
+                  rules: acceptedRules,
+                })
+              }
+              onResult={(text) => setGameName(text)}
+            />
+          </div>
           <Input
             placeholder={`e.g., "${baseGame === "monopoly" ? "Monopoly: Beach House Edition" : "The Ultimate Game Night"}`}
             value={gameName}
@@ -45,9 +61,24 @@ export function StepTheme() {
         </div>
 
         <div>
-          <label className="text-sm font-medium text-gray-700 mb-1.5 block">
-            Theme Description
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-sm font-medium text-gray-700">
+              Theme Description
+            </label>
+            <AIGenerateButton
+              label="AI Generate"
+              onGenerate={() =>
+                generateText({
+                  field: "description",
+                  baseGame: baseGame || "board game",
+                  theme,
+                  gameName,
+                  rules: acceptedRules,
+                })
+              }
+              onResult={(text) => setTheme(text)}
+            />
+          </div>
           <Textarea
             placeholder="Describe the theme, vibe, and any specific elements you want. The more detail, the better the AI can personalize your game..."
             value={theme}
