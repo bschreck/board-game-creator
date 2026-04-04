@@ -47,7 +47,7 @@ Design a vibrant, eye-catching box cover with the game title "${gameName}" promi
 async function tryGeminiImageGen(prompt: string): Promise<string | null> {
   const { getGemini } = await import("@/lib/gemini");
   const genAI = getGemini();
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+  const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-image-preview" });
 
   const response = await model.generateContent({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
