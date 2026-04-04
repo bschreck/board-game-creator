@@ -1,16 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useGameStore } from "@/lib/game-store";
-import { generateImagePrompt, generateText } from "@/lib/ai-helpers";
-import { PRICING } from "@/lib/stripe";
+import { generateText } from "@/lib/ai-helpers";
+import { getAvailableTiers } from "@/lib/pricing";
 import { BASE_GAMES } from "@/lib/game-data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { AssetPreview } from "@/components/asset-preview";
 import {
   Check,
   Star,
@@ -23,7 +22,38 @@ import {
   Wand2,
   Copy,
   BookOpen,
+  RefreshCw,
+  Layers,
+  Box,
 } from "lucide-react";
+
+type ArtType = "board" | "card" | "box-cover";
+
+interface GeneratedArt {
+  image: string | null;
+  description?: string;
+}
+
+async function generateArtImage(params: {
+  imageType: ArtType;
+  baseGame: string;
+  theme: string;
+  gameName: string;
+  rules: string[];
+  referenceStyle?: string;
+}): Promise<GeneratedArt | null> {
+  try {
+    const res = await fetch("/api/game/generate-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
 
 export function StepPreview() {
   const {
@@ -38,85 +68,129 @@ export function StepPreview() {
     setBoardPreview,
   } = useGameStore();
   const [generating, setGenerating] = useState(false);
-  const [imagePrompts, setImagePrompts] = useState<Record<string, string>>({});
-  const [promptLoading, setPromptLoading] = useState<Record<string, boolean>>({});
+  const [boardDescription, setBoardDescription] = useState("");
+
+  // Art generation state
+  const [artImages, setArtImages] = useState<Record<ArtType, GeneratedArt | null>>({
+    board: null,
+    card: null,
+    "box-cover": null,
+  });
+  const [artLoading, setArtLoading] = useState<Record<ArtType, boolean>>({
+    board: false,
+    card: false,
+    "box-cover": false,
+  });
+  const [copyStyleLoading, setCopyStyleLoading] = useState<Record<ArtType, boolean>>({
+    board: false,
+    card: false,
+    "box-cover": false,
+  });
+
+  // Rules booklet
   const [rulesBooklet, setRulesBooklet] = useState("");
   const [rulesLoading, setRulesLoading] = useState(false);
 
   const selectedGame = BASE_GAMES.find((g) => g.id === baseGame);
-  const tierInfo = PRICING[tier];
+  const availableTiers = getAvailableTiers(selectedGame?.category);
+  const tierInfo = availableTiers.find(([key]) => key === tier)?.[1] ?? availableTiers[0][1];
+
+  // Ensure current tier is valid for this game type
+  const validTierKeys = availableTiers.map(([key]) => key);
+  if (!validTierKeys.includes(tier)) {
+    setTier(validTierKeys[validTierKeys.length - 1] as "basic" | "premium" | "deluxe");
+  }
 
   const generatePreview = async () => {
     setGenerating(true);
-    // Generate a gradient-based preview placeholder
-    const canvas = document.createElement("canvas");
-    canvas.width = 800;
-    canvas.height = 600;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      const gradient = ctx.createLinearGradient(0, 0, 800, 600);
-      gradient.addColorStop(0, "#7c3aed");
-      gradient.addColorStop(0.5, "#4f46e5");
-      gradient.addColorStop(1, "#2563eb");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, 800, 600);
-
-      ctx.strokeStyle = "#ffffff40";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(60, 60, 680, 480);
-
-      ctx.strokeStyle = "#ffffff20";
-      ctx.lineWidth = 1;
-      for (let i = 1; i < 8; i++) {
-        ctx.beginPath();
-        ctx.moveTo(60 + i * 85, 60);
-        ctx.lineTo(60 + i * 85, 540);
-        ctx.stroke();
-        if (i < 6) {
-          ctx.beginPath();
-          ctx.moveTo(60, 60 + i * 80);
-          ctx.lineTo(740, 60 + i * 80);
-          ctx.stroke();
-        }
-      }
-
-      ctx.fillStyle = "white";
-      ctx.font = "bold 36px Inter, system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(gameName || "Your Custom Game", 400, 320);
-
-      ctx.font = "18px Inter, system-ui, sans-serif";
-      ctx.fillStyle = "#c4b5fd";
-      ctx.fillText(theme || "Custom Theme", 400, 355);
-
-      ctx.font = "bold 14px Inter, system-ui, sans-serif";
-      ctx.fillStyle = "#ffffff80";
-      ctx.textAlign = "left";
-      ctx.fillText("START", 75, 85);
-      ctx.textAlign = "right";
-      ctx.fillText("FINISH", 725, 530);
-    }
-    setBoardPreview(canvas.toDataURL("image/png"));
-    setGenerating(false);
-  };
-
-  const handleGenerateImagePrompt = async (imageType: "board" | "card" | "box-cover") => {
-    setPromptLoading((prev) => ({ ...prev, [imageType]: true }));
+    setBoardDescription("");
     try {
-      const prompt = await generateImagePrompt({
-        imageType,
+      const result = await generateArtImage({
+        imageType: "board",
         baseGame: baseGame || "board game",
         theme,
         gameName,
         rules: acceptedRules,
       });
-      if (prompt) {
-        setImagePrompts((prev) => ({ ...prev, [imageType]: prompt }));
+      if (result?.image) {
+        setBoardPreview(result.image);
+      } else if (result?.description) {
+        setBoardDescription(result.description);
+        // Generate a styled placeholder with the description
+        const canvas = document.createElement("canvas");
+        canvas.width = 800;
+        canvas.height = 600;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          const gradient = ctx.createLinearGradient(0, 0, 800, 600);
+          gradient.addColorStop(0, "#7c3aed");
+          gradient.addColorStop(0.5, "#4f46e5");
+          gradient.addColorStop(1, "#2563eb");
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, 800, 600);
+          ctx.fillStyle = "white";
+          ctx.font = "bold 28px Inter, system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(gameName || "Your Custom Game", 400, 280);
+          ctx.font = "16px Inter, system-ui, sans-serif";
+          ctx.fillStyle = "#c4b5fd";
+          ctx.fillText("AI Preview - See description below", 400, 320);
+        }
+        setBoardPreview(canvas.toDataURL("image/png"));
       }
     } finally {
-      setPromptLoading((prev) => ({ ...prev, [imageType]: false }));
+      setGenerating(false);
     }
   };
+
+  const handleGenerateArt = useCallback(
+    async (artType: ArtType) => {
+      setArtLoading((prev) => ({ ...prev, [artType]: true }));
+      try {
+        const result = await generateArtImage({
+          imageType: artType,
+          baseGame: baseGame || "board game",
+          theme,
+          gameName,
+          rules: acceptedRules,
+        });
+        if (result) {
+          setArtImages((prev) => ({ ...prev, [artType]: result }));
+        }
+      } finally {
+        setArtLoading((prev) => ({ ...prev, [artType]: false }));
+      }
+    },
+    [baseGame, theme, gameName, acceptedRules]
+  );
+
+  // Copy style from one generated art to another
+  const handleCopyStyle = useCallback(
+    async (sourceType: ArtType, targetType: ArtType) => {
+      const source = artImages[sourceType];
+      if (!source?.image) return;
+
+      setCopyStyleLoading((prev) => ({ ...prev, [targetType]: true }));
+      try {
+        // Describe the source style for the API to match
+        const styleDesc = `Match the exact visual style, color palette, artistic technique, and aesthetic of the previously generated ${sourceType} art for this game. Maintain consistent branding and visual identity.`;
+        const result = await generateArtImage({
+          imageType: targetType,
+          baseGame: baseGame || "board game",
+          theme,
+          gameName,
+          rules: acceptedRules,
+          referenceStyle: styleDesc,
+        });
+        if (result) {
+          setArtImages((prev) => ({ ...prev, [targetType]: result }));
+        }
+      } finally {
+        setCopyStyleLoading((prev) => ({ ...prev, [targetType]: false }));
+      }
+    },
+    [artImages, baseGame, theme, gameName, acceptedRules]
+  );
 
   const handleGenerateRulesBooklet = async () => {
     setRulesLoading(true);
@@ -138,12 +212,23 @@ export function StepPreview() {
     navigator.clipboard.writeText(text);
   };
 
+  // Check which art types have been generated (for copy style)
+  const generatedTypes = (Object.entries(artImages) as [ArtType, GeneratedArt | null][])
+    .filter(([, art]) => art?.image)
+    .map(([type]) => type);
+
+  const artConfig: { key: ArtType; label: string; icon: typeof Palette }[] = [
+    { key: "board", label: "Board Art", icon: Palette },
+    { key: "card", label: "Card Art", icon: Layers },
+    { key: "box-cover", label: "Box Art", icon: Box },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Preview & Package</h2>
         <p className="text-gray-500 mt-1">
-          Review your game, generate AI art prompts, and pick a package.
+          Generate AI art for your game, review details, and pick a package.
         </p>
       </div>
 
@@ -164,12 +249,12 @@ export function StepPreview() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Game Name</span>
-                <span className="font-medium">{gameName || "—"}</span>
+                <span className="font-medium">{gameName || "\u2014"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Theme</span>
                 <span className="font-medium truncate max-w-[200px]">
-                  {theme || "—"}
+                  {theme || "\u2014"}
                 </span>
               </div>
             </div>
@@ -238,18 +323,40 @@ export function StepPreview() {
             Board Preview
           </h3>
           {boardPreview ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="rounded-xl overflow-hidden border border-gray-200"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={boardPreview}
-                alt="Board preview"
-                className="w-full"
-              />
-            </motion.div>
+            <div className="space-y-3">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="rounded-xl overflow-hidden border border-gray-200"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={boardPreview}
+                  alt="Board preview"
+                  className="w-full"
+                />
+              </motion.div>
+              {boardDescription && (
+                <div className="bg-violet-50 rounded-lg p-4">
+                  <p className="text-sm text-violet-800 font-medium mb-1">AI Vision:</p>
+                  <p className="text-sm text-violet-700">{boardDescription}</p>
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={generatePreview}
+                disabled={generating}
+                className="text-violet-600"
+              >
+                {generating ? (
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                Regenerate
+              </Button>
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-10 rounded-xl bg-gray-50 border border-dashed border-gray-200">
               <Button
@@ -270,62 +377,102 @@ export function StepPreview() {
                 )}
               </Button>
               <p className="text-xs text-gray-400 mt-2">
-                Creates a preview of your game board layout
+                Uses AI to create a preview of your game board
               </p>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* AI Image Prompt Generation */}
+      {/* AI Art Generation */}
       <Card>
         <CardContent className="pt-5 space-y-4">
           <h3 className="font-semibold text-gray-900 flex items-center gap-2">
             <Wand2 className="h-4 w-4 text-violet-500" />
-            AI Art Prompts
+            Game Art
           </h3>
           <p className="text-sm text-gray-500">
-            Generate detailed prompts for AI image generation tools. Use these with Midjourney, DALL-E, or other image generators.
+            Generate sample artwork for your game components.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {(
-              [
-                { key: "board", label: "Board Art" },
-                { key: "card", label: "Card Artwork" },
-                { key: "box-cover", label: "Box Cover" },
-              ] as const
-            ).map(({ key, label }) => (
-              <div key={key} className="space-y-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-violet-600 border-violet-200 hover:bg-violet-50"
-                  onClick={() => handleGenerateImagePrompt(key)}
-                  disabled={promptLoading[key]}
-                >
-                  {promptLoading[key] ? (
-                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                  ) : (
-                    <Wand2 className="h-3.5 w-3.5 mr-1.5" />
-                  )}
-                  {label}
-                </Button>
-                {imagePrompts[key] && (
-                  <div className="relative">
-                    <p className="text-xs text-gray-600 bg-gray-50 rounded-lg p-3 pr-8">
-                      {imagePrompts[key]}
-                    </p>
-                    <button
-                      onClick={() => copyToClipboard(imagePrompts[key])}
-                      className="absolute top-2 right-2 p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600"
-                      title="Copy to clipboard"
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {artConfig.map(({ key, label, icon: Icon }) => {
+              const art = artImages[key];
+              const isLoading = artLoading[key] || copyStyleLoading[key];
+
+              return (
+                <div key={key} className="space-y-3">
+                  {art?.image ? (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="rounded-xl overflow-hidden border border-gray-200 bg-gray-100"
                     >
-                      <Copy className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+                      <div className="p-2 bg-violet-50 flex items-center gap-2">
+                        <Icon className="h-3.5 w-3.5 text-violet-600" />
+                        <span className="text-xs font-medium text-violet-900">{label}</span>
+                      </div>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={art.image}
+                        alt={`${label} preview`}
+                        className="w-full aspect-square object-cover"
+                      />
+                    </motion.div>
+                  ) : art?.description ? (
+                    <div className="rounded-xl border border-gray-200 bg-violet-50 p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Icon className="h-3.5 w-3.5 text-violet-600" />
+                        <span className="text-xs font-medium text-violet-900">{label}</span>
+                      </div>
+                      <p className="text-xs text-violet-700">{art.description}</p>
+                    </div>
+                  ) : null}
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-violet-600 border-violet-200 hover:bg-violet-50"
+                    onClick={() => handleGenerateArt(key)}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : art?.image ? (
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    {isLoading
+                      ? "Generating..."
+                      : art?.image
+                        ? `Regenerate ${label}`
+                        : `Generate ${label}`}
+                  </Button>
+
+                  {/* Copy Style buttons - show when other art types have been generated */}
+                  {!art?.image &&
+                    generatedTypes.length > 0 &&
+                    generatedTypes.filter((t) => t !== key).map((sourceType) => (
+                      <Button
+                        key={sourceType}
+                        variant="ghost"
+                        size="sm"
+                        className="w-full text-xs text-violet-500 hover:text-violet-700 hover:bg-violet-50"
+                        onClick={() => handleCopyStyle(sourceType, key)}
+                        disabled={copyStyleLoading[key]}
+                      >
+                        {copyStyleLoading[key] ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Copy className="h-3 w-3 mr-1" />
+                        )}
+                        Copy style from{" "}
+                        {artConfig.find((a) => a.key === sourceType)?.label}
+                      </Button>
+                    ))}
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -377,21 +524,21 @@ export function StepPreview() {
         </CardContent>
       </Card>
 
-      {/* AI Asset Previews */}
-      <AssetPreview
-        gameName={gameName}
-        baseGame={baseGame || "board game"}
-        theme={theme}
-        rules={acceptedRules}
-        tier={tier}
-      />
-
       {/* Tier selection */}
       <div>
         <h3 className="font-semibold text-gray-900 mb-4">Choose Your Package</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {(Object.entries(PRICING) as [string, (typeof PRICING)[keyof typeof PRICING]][]).map(
-            ([key, tierData], i) => (
+        {selectedGame?.category === "Cards" && (
+          <p className="text-sm text-gray-500 mb-3">
+            Card games include two tiers optimized for card-based gameplay.
+          </p>
+        )}
+        <div className={`grid grid-cols-1 gap-4 ${availableTiers.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
+          {availableTiers.map(([key, tierData], i) => {
+            const isPopular =
+              (availableTiers.length === 3 && i === 1) ||
+              (availableTiers.length === 2 && i === 1);
+
+            return (
               <motion.div
                 key={key}
                 whileHover={{ scale: 1.01 }}
@@ -406,7 +553,7 @@ export function StepPreview() {
                   onClick={() => setTier(key as "basic" | "premium" | "deluxe")}
                 >
                   <CardContent className="pt-5 pb-5">
-                    {i === 1 && (
+                    {isPopular && (
                       <Badge className="mb-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white border-0">
                         <Star className="h-3 w-3 mr-1" />
                         Popular
@@ -422,7 +569,7 @@ export function StepPreview() {
                       {tierData.description}
                     </p>
                     <ul className="space-y-1">
-                      {tierData.features.slice(0, 3).map((f, j) => (
+                      {tierData.features.slice(0, 4).map((f, j) => (
                         <li
                           key={j}
                           className="text-xs text-gray-600 flex items-center gap-1.5"
@@ -435,8 +582,8 @@ export function StepPreview() {
                   </CardContent>
                 </Card>
               </motion.div>
-            )
-          )}
+            );
+          })}
         </div>
       </div>
     </div>

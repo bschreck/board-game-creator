@@ -18,4 +18,4 @@ export const stripe = typeof window === "undefined"
   : (null as unknown as Stripe);
 
 // Re-export pricing from safe client-importable module
-export { PRICING, type PricingTier } from "./pricing";
+export { PRICING, CARD_PRICING, BOARD_PRICING, type PricingTier, type TierInfo, getAvailableTiers, getTierPrice, getBulkDiscount, getDiscountedUnitPrice, calculateTotal, BULK_TIERS } from "./pricing";

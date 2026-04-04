@@ -6,9 +6,32 @@ type PromptCtx = { baseGame: string; theme: string; gameName: string; rules: str
 
 const PROMPTS: Record<TextFieldType, (ctx: PromptCtx) => string> = {
   title: ({ baseGame, theme, photoContext }) =>
-    `Generate a single creative, catchy board game title for a custom version of ${baseGame} with the theme "${theme || "fun party game"}".${photoContext ? ` ${photoContext}` : ""} Respond with ONLY the title, no quotes, no explanation. Keep it under 8 words.`,
+    `Generate a creative, catchy, memorable board game title. The game is based on ${baseGame} mechanics but the title should NOT reference ${baseGame} at all.
+
+Come up with a theme that is COMPLETELY UNRELATED to the original game. Think pop culture mashups, absurd scenarios, niche subcultures. Examples of great custom game themes:
+- "Schitt's Creek: The Property Game" (Monopoly + TV show)
+- "The Office: Threat Level Midnight" (Clue + The Office)
+- "Taco Bell Menu Wars" (Risk + fast food)
+- "Real Housewives: Backstab Edition" (Coup + reality TV)
+- "Dog Park Diplomacy" (Codenames + dogs)
+- "Taylor Swift Eras Tour: The Card Game" (UNO + Taylor Swift)
+
+${theme ? `Current theme direction: "${theme}" - make the title match this theme.` : "Come up with something unexpected and fun."}
+${photoContext ? `The players uploaded these photos: ${photoContext}. Incorporate references to what you see in the photos if possible.` : ""}
+
+Respond with ONLY the title, no quotes, no explanation. Keep it under 8 words.`,
   description: ({ baseGame, theme, gameName, photoContext }) =>
-    `Write a short, exciting 1-2 sentence description for a custom board game called "${gameName || "Custom Game"}" based on ${baseGame} with the theme "${theme || "party fun"}".${photoContext ? ` ${photoContext}` : ""} Make it sound like back-of-box marketing copy. Respond with ONLY the description.`,
+    `Write a short, exciting 2-3 sentence theme description for a custom board game${gameName ? ` called "${gameName}"` : ""} that uses ${baseGame} mechanics.
+
+The theme should be TOTALLY UNRELATED to the original ${baseGame} game. Think pop culture, movies, TV shows, memes, hobbies, absurd scenarios. Examples:
+- A Monopoly game themed around "The Great British Bake Off" where you buy bakeries
+- An UNO game themed around "Jurassic Park" where cards are dinosaurs
+- A Codenames game themed around "RuPaul's Drag Race" with drag queen code names
+
+${theme ? `Build on this theme direction: "${theme}"` : "Come up with something unexpected, funny, and specific."}
+${photoContext ? `The players uploaded these photos: ${photoContext}. Reference what's in the photos to make it personal.` : ""}
+
+Describe the vibe, setting, and what makes this version special. Make it sound like exciting back-of-box copy. Respond with ONLY the description, 2-3 sentences.`,
   rule: ({ baseGame, theme, rules }) =>
     `You are a creative board game designer. Generate ONE fun, surprising rule mutation for ${baseGame} with theme "${theme || "custom"}".
 ${rules?.length ? `\nDo NOT suggest these rules (already used): ${rules.join("; ")}` : ""}

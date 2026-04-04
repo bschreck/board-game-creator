@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { stripe, PRICING, PricingTier } from "@/lib/stripe";
+import { stripe, getTierPrice, getDiscountedUnitPrice, type PricingTier } from "@/lib/stripe";
+import { BASE_GAMES } from "@/lib/game-data";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -25,14 +26,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Game not found" }, { status: 404 });
   }
 
-  const tierInfo = PRICING[game.tier as PricingTier];
+  const gameData = BASE_GAMES.find((g) => g.id === game.baseGame);
+  const tierInfo = getTierPrice(game.tier as PricingTier, gameData?.category);
   if (!tierInfo) {
     return NextResponse.json({ error: "Invalid tier" }, { status: 400 });
   }
 
-  // Calculate total (base + extra copies for gift addresses)
+  const quantity = body.quantity || 1;
   const extraCopies = giftAddresses?.length || 0;
-  const totalAmount = tierInfo.price * (1 + extraCopies);
+  const totalCopies = quantity + extraCopies;
+  const unitPrice = getDiscountedUnitPrice(tierInfo.price, totalCopies);
+  const totalAmount = unitPrice * totalCopies;
 
   try {
     const stripeSession = await stripe.checkout.sessions.create({
@@ -42,12 +46,12 @@ export async function POST(req: NextRequest) {
           price_data: {
             currency: "usd",
             product_data: {
-              name: `${tierInfo.name} Board Game — ${game.name}`,
-              description: `Custom ${game.baseGame}-style board game: "${game.theme}"`,
+              name: `${tierInfo.name} Game — ${game.name}`,
+              description: `Custom ${game.baseGame}-style game: "${game.theme}"`,
             },
-            unit_amount: tierInfo.price,
+            unit_amount: unitPrice,
           },
-          quantity: 1 + extraCopies,
+          quantity: totalCopies,
         },
       ],
       mode: "payment",

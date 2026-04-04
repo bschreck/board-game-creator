@@ -20,24 +20,24 @@ export function StepTheme() {
   const handleGenerateBoth = async () => {
     setGenerating(true);
     try {
-      const [nameResult, themeResult] = await Promise.all([
-        generateText({
-          field: "title",
-          baseGame: baseGame || "board game",
-          theme: theme || undefined,
-          rules: acceptedRules,
-          photoContext: photoContext || undefined,
-        }),
-        generateText({
-          field: "description",
-          baseGame: baseGame || "board game",
-          gameName: gameName || undefined,
-          rules: acceptedRules,
-          photoContext: photoContext || undefined,
-        }),
-      ]);
-      if (nameResult) setGameName(nameResult);
+      // Generate theme first, then name (so name can reference the theme)
+      const themeResult = await generateText({
+        field: "description",
+        baseGame: baseGame || "board game",
+        gameName: gameName || undefined,
+        rules: acceptedRules,
+        photoContext: photoContext || undefined,
+      });
       if (themeResult) setTheme(themeResult);
+
+      const nameResult = await generateText({
+        field: "title",
+        baseGame: baseGame || "board game",
+        theme: themeResult || theme || undefined,
+        rules: acceptedRules,
+        photoContext: photoContext || undefined,
+      });
+      if (nameResult) setGameName(nameResult);
     } catch (e) {
       console.error("Generation failed:", e);
     } finally {
