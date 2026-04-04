@@ -1,53 +1,21 @@
 import Stripe from "stripe";
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-03-31.basil",
-  typescript: true,
-});
+let _stripe: Stripe | null = null;
 
-export const PRICING = {
-  basic: {
-    name: "Basic",
-    price: 2900,
-    display: "$29",
-    description: "Standard board, cards & rules booklet",
-    features: [
-      "Custom themed game board",
-      "Personalized rule booklet",
-      "Standard card deck",
-      "Up to 5 photos",
-      "Free shipping",
-    ],
-  },
-  premium: {
-    name: "Premium",
-    price: 4900,
-    display: "$49",
-    description: "Enhanced components & premium materials",
-    features: [
-      "Everything in Basic",
-      "Premium cardstock & board",
-      "Custom game pieces",
-      "Up to 15 photos",
-      "Custom box art",
-      "Priority shipping",
-    ],
-  },
-  deluxe: {
-    name: "Deluxe",
-    price: 7900,
-    display: "$79",
-    description: "The ultimate custom board game experience",
-    features: [
-      "Everything in Premium",
-      "Wooden game pieces",
-      "Metal coins & tokens",
-      "Unlimited photos",
-      "Embossed box",
-      "Gift wrapping available",
-      "Express shipping",
-    ],
-  },
-} as const;
+export function getStripe() {
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+      apiVersion: "2025-03-31.basil",
+      typescript: true,
+    });
+  }
+  return _stripe;
+}
 
-export type PricingTier = keyof typeof PRICING;
+// Keep for backward compat in server-only files
+export const stripe = typeof window === "undefined" 
+  ? new Stripe(process.env.STRIPE_SECRET_KEY || "", { apiVersion: "2025-03-31.basil", typescript: true })
+  : (null as unknown as Stripe);
+
+// Re-export pricing from safe client-importable module
+export { PRICING, type PricingTier } from "./pricing";

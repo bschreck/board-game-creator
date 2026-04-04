@@ -20,7 +20,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
-import { PRICING } from "@/lib/stripe";
+import { PRICING } from "@/lib/pricing";
 import { BASE_GAMES } from "@/lib/game-data";
 
 const fadeUp = {
