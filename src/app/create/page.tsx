@@ -137,7 +137,7 @@ export default function CreatePage() {
   const progress = ((step + 1) / STEPS.length) * 100;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col overflow-y-auto">
       <Navbar />
 
       <div className="flex-1">
@@ -194,7 +194,7 @@ export default function CreatePage() {
           </AnimatePresence>
 
           {/* Navigation */}
-          <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
+          <div className="flex items-center justify-between mt-8 pt-6 pb-24 sm:pb-6 border-t border-gray-200">
             <Button
               variant="ghost"
               onClick={handleBack}

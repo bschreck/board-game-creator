@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AIGenerateButton } from "@/components/ui/ai-generate-button";
-import { Palette, Lightbulb } from "lucide-react";
+import { Palette, Lightbulb, Sparkles } from "lucide-react";
+import { useState } from "react";
 
 const THEME_SUGGESTIONS = [
   "Our Family Vacation 2026",
@@ -23,6 +24,33 @@ const THEME_SUGGESTIONS = [
 
 export function StepTheme() {
   const { gameName, theme, setGameName, setTheme, baseGame, acceptedRules } = useGameStore();
+  const [generating, setGenerating] = useState(false);
+
+  const handleGenerateBoth = async () => {
+    setGenerating(true);
+    try {
+      const [nameResult, themeResult] = await Promise.all([
+        generateText({
+          field: "title",
+          baseGame: baseGame || "board game",
+          theme: theme || undefined,
+          rules: acceptedRules,
+        }),
+        generateText({
+          field: "description",
+          baseGame: baseGame || "board game",
+          gameName: gameName || undefined,
+          rules: acceptedRules,
+        }),
+      ]);
+      if (nameResult) setGameName(nameResult);
+      if (themeResult) setTheme(themeResult);
+    } catch (e) {
+      console.error("Generation failed:", e);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -32,6 +60,18 @@ export function StepTheme() {
           Give your game a name and theme. This drives the AI-generated art, copy, and overall vibe.
         </p>
       </div>
+
+      {/* Big generate button */}
+      <motion.button
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
+        onClick={handleGenerateBoth}
+        disabled={generating}
+        className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold text-lg flex items-center justify-center gap-3 shadow-lg shadow-violet-500/25 transition-all disabled:opacity-60"
+      >
+        <Sparkles className={`h-5 w-5 ${generating ? "animate-spin" : ""}`} />
+        {generating ? "Generating..." : "✨ Generate Name & Theme with AI"}
+      </motion.button>
 
       <div className="space-y-5">
         <div>
