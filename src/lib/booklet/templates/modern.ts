@@ -156,8 +156,8 @@ export function renderModernTemplate(data: RulebookData): string {
 </html>`;
 }
 
-function esc(str: string): string {
-  return str
+function esc(str: string | undefined | null): string {
+  return (str ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
