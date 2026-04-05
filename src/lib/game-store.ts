@@ -1,9 +1,11 @@
 "use client";
 
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { BaseGameId } from "./game-data";
 
 const PENDING_GAME_KEY = "boardcraft_pending_game";
+const STORE_KEY = "boardcraft_game_state";
 
 export interface GameState {
   step: number;
@@ -45,7 +47,7 @@ const initialState = {
   boardPreview: null as string | null,
 };
 
-export const useGameStore = create<GameState>((set, get) => ({
+export const useGameStore = create<GameState>()(persist((set, get) => ({
   ...initialState,
   setStep: (step) => set({ step }),
   setBaseGame: (baseGame) => set({ baseGame }),
@@ -104,4 +106,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     try { localStorage.removeItem(PENDING_GAME_KEY); } catch {}
   },
   reset: () => set(initialState),
+}), {
+  name: STORE_KEY,
+  partialize: (state) => ({
+    step: state.step,
+    baseGame: state.baseGame,
+    gameName: state.gameName,
+    theme: state.theme,
+    acceptedRules: state.acceptedRules,
+    rejectedRules: state.rejectedRules,
+    photos: state.photos,
+    tier: state.tier,
+    boardPreview: state.boardPreview,
+  }),
 }));
