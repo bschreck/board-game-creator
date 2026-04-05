@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { renderTemplate, gameToRulebookData } from "@/lib/booklet/template-engine";
 import { renderPdf } from "@/lib/booklet/pdf-renderer";
@@ -9,11 +7,6 @@ import type { RulebookData, TemplateStyle } from "@/lib/booklet/types";
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const body = await req.json();
   const { gameId, gameData, template = "modern" } = body as {
     gameId?: string;
@@ -34,7 +27,7 @@ export async function POST(req: NextRequest) {
     rulebookData = gameData;
   } else {
     const game = await prisma.game.findFirst({
-      where: { id: gameId, userId: session.user.id },
+      where: { id: gameId },
     });
     if (!game) {
       return NextResponse.json({ error: "Game not found" }, { status: 404 });
