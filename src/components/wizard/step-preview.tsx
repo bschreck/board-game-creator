@@ -79,6 +79,42 @@ async function generateArtImage(params: {
   }
 }
 
+/**
+ * Parse AI-generated rules booklet markdown into structured sections.
+ * Splits on markdown ## headings.
+ */
+function parseRulesBookletToSections(
+  text: string,
+): { heading: string; body: string }[] {
+  const lines = text.split("\n");
+  const sections: { heading: string; body: string }[] = [];
+  let currentHeading = "";
+  let currentBody: string[] = [];
+
+  for (const line of lines) {
+    const h2Match = line.match(/^##\s+(.+)/);
+    if (h2Match) {
+      if (currentHeading) {
+        sections.push({ heading: currentHeading, body: currentBody.join("\n").trim() });
+      }
+      currentHeading = h2Match[1].replace(/[#*_]/g, "").trim();
+      currentBody = [];
+    } else if (currentHeading) {
+      currentBody.push(line);
+    }
+  }
+  if (currentHeading) {
+    sections.push({ heading: currentHeading, body: currentBody.join("\n").trim() });
+  }
+
+  // Fallback: if no sections were parsed, treat the whole text as a single Overview
+  if (sections.length === 0 && text.trim()) {
+    sections.push({ heading: "Overview", body: text.trim() });
+  }
+
+  return sections;
+}
+
 export function StepPreview() {
   const {
     baseGame,
@@ -220,6 +256,28 @@ export function StepPreview() {
     setPdfLoading(true);
     setPdfError("");
     try {
+      // Build sections from AI-generated rules text if available, otherwise use defaults
+      const sections = rulesBooklet
+        ? parseRulesBookletToSections(rulesBooklet)
+        : [
+            {
+              heading: "Overview",
+              body: `Welcome to ${gameName}! This is a custom version of ${baseGame}${theme ? `, themed around ${theme}` : ""}. The core gameplay follows the classic ${baseGame} rules with exciting custom twists.`,
+            },
+            {
+              heading: "Setup",
+              body: `Set up the game according to the standard ${baseGame} rules. Place the board in the center of the table, shuffle all cards, and distribute starting pieces to each player.`,
+            },
+            {
+              heading: "How to Play",
+              body: `On your turn, follow the standard ${baseGame} turn structure. Players take turns clockwise. Remember to apply any custom rules that modify the base gameplay.`,
+            },
+            {
+              heading: "Winning",
+              body: `The winner is determined according to standard ${baseGame} victory conditions, with any modifications from the custom rules applied.`,
+            },
+          ];
+
       const res = await fetch("/api/generate-rulebook", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -229,28 +287,17 @@ export function StepPreview() {
             subtitle: `A custom ${baseGame || "board game"} experience`,
             baseGame: baseGame || "board game",
             theme: theme || undefined,
+            description: theme
+              ? `Set in a world of ${theme}, this custom version of ${baseGame} brings exciting new twists to the classic gameplay.`
+              : undefined,
             playerCount: "2-6",
             playTime: "30-60 min",
             age: "10",
-            sections: [
-              {
-                heading: "Overview",
-                body: `Welcome to ${gameName}! This is a custom version of ${baseGame}${theme ? `, themed around ${theme}` : ""}. The core gameplay follows the classic ${baseGame} rules with exciting custom twists.`,
-              },
-              {
-                heading: "Setup",
-                body: `Set up the game according to the standard ${baseGame} rules. Place the board in the center of the table, shuffle all cards, and distribute starting pieces to each player.`,
-              },
-              {
-                heading: "How to Play",
-                body: `On your turn, follow the standard ${baseGame} turn structure. Players take turns clockwise. Remember to apply any custom rules that modify the base gameplay.`,
-              },
-              {
-                heading: "Winning",
-                body: `The winner is determined according to standard ${baseGame} victory conditions, with any modifications from the custom rules applied.`,
-              },
-            ],
+            sections,
             customRules: acceptedRules,
+            boardArtBase64: boardPreview || artImages.board?.image || undefined,
+            cardArtBase64: artImages.card?.image || undefined,
+            rulesText: rulesBooklet || undefined,
           },
           template: pdfTemplate,
         }),
