@@ -17,7 +17,7 @@ Come up with a theme that is COMPLETELY UNRELATED to the original game. Think po
 - "Taylor Swift Eras Tour: The Card Game" (UNO + Taylor Swift)
 
 ${theme ? `Current theme direction: "${theme}" - make the title match this theme.` : "Come up with something unexpected and fun."}
-${photoContext ? `The players uploaded these photos: ${photoContext}. Incorporate references to what you see in the photos if possible.` : ""}
+${photoContext ? `${photoContext} Incorporate references to visual elements from the photos if possible. NEVER mention filenames, file extensions, or that photos were uploaded.` : ""}
 
 Respond with ONLY the title, no quotes, no explanation. Keep it under 8 words.`,
   description: ({ baseGame, theme, gameName, photoContext }) =>
@@ -29,7 +29,7 @@ The theme should be TOTALLY UNRELATED to the original ${baseGame} game. Think po
 - A Codenames game themed around "RuPaul's Drag Race" with drag queen code names
 
 ${theme ? `Build on this theme direction: "${theme}"` : "Come up with something unexpected, funny, and specific."}
-${photoContext ? `The players uploaded these photos: ${photoContext}. Reference what's in the photos to make it personal.` : ""}
+${photoContext ? `${photoContext} Reference what's depicted in the photos to make it personal. NEVER mention filenames, file extensions, or that photos were uploaded.` : ""}
 
 Describe the vibe, setting, and what makes this version special. Make it sound like exciting back-of-box copy. Respond with ONLY the description, 2-3 sentences.`,
   rule: ({ baseGame, theme, rules }) =>
@@ -41,7 +41,7 @@ Respond with ONLY the rule text, nothing else. No quotes, no prefix.`,
   "rules-booklet": ({ baseGame, theme, gameName, rules, photoContext }) =>
     `Write a concise rules summary for a custom board game called "${gameName || "Custom Game"}" based on ${baseGame} with theme "${theme || "custom"}".
 ${rules?.length ? `Custom rule modifications:\n${rules.map((r, i) => `${i + 1}. ${r}`).join("\n")}` : ""}
-${photoContext ? `The players provided reference photos: ${photoContext}. Reference these in the flavor text where appropriate.` : ""}
+${photoContext ? `${photoContext} Reference the visual elements from the photos in the flavor text where appropriate. NEVER mention filenames, file extensions, or that photos were uploaded.` : ""}
 Write 3-5 short paragraphs covering: game objective, setup, turn structure, winning conditions, and any custom rules. Keep it engaging and clear. Respond with ONLY the rules text.`,
 };
 

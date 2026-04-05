@@ -18,7 +18,7 @@ function buildPrompt(
     : "";
 
   const photoDirective = photoContext
-    ? `\nREFERENCE PHOTOS: ${photoContext}\nIncorporate the visual elements, subjects, and style from the attached reference photos into the artwork.`
+    ? `\nREFERENCE PHOTOS: The user has provided reference photos attached below. Study the visual elements, subjects, colors, and style in these reference photos and incorporate them into the artwork. NEVER mention filenames or file extensions.`
     : "";
 
   const prompts: Record<ImageType, string> = {
@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
   // Step 2: Two-step approach - generate a detailed prompt via Cerebras, then use it with Gemini
   try {
     const { cerebrasGenerate } = await import("@/lib/cerebras");
-    const photoHint = photoContext ? ` The user provided reference photos: ${photoContext}. Incorporate their visual elements.` : "";
+    const photoHint = photoContext ? ` The user provided reference photos attached below. Describe and incorporate their visual elements, subjects, and style. NEVER mention filenames or file extensions.` : "";
     const detailedPrompt = await cerebrasGenerate(
       `Write a detailed, vivid image generation prompt for an AI image generator. The image should be ${imageType} art for a board game called "${name}" based on ${baseGame} with a "${themeStr}" theme.${referenceStyle ? ` Style: ${referenceStyle}` : ""}${photoHint} Respond with ONLY the prompt, no explanation. Make it detailed and specific about composition, colors, and style.`
     );

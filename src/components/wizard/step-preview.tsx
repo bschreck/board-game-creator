@@ -126,7 +126,7 @@ export function StepPreview() {
   }
 
   const photoContext = photos.length > 0
-    ? `The user has uploaded ${photos.length} reference photo(s) named: ${photos.map((p) => p.name).join(", ")}. Incorporate visual elements, subjects, and style from these reference photos into the generated artwork.`
+    ? `The user has uploaded ${photos.length} reference photo(s). Incorporate the visual elements, subjects, and style you see in the attached reference photos into the generated artwork.`
     : "";
 
   const getPhotoBase64 = useCallback(async (): Promise<string[]> => {

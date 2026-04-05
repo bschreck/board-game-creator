@@ -14,7 +14,7 @@ export function StepTheme() {
   const [generating, setGenerating] = useState(false);
 
   const photoContext = photos.length > 0
-    ? `The user has uploaded ${photos.length} photo(s) named: ${photos.map((p) => p.name).join(", ")}. Use the photo names as inspiration for personalizing the theme.`
+    ? `The user has uploaded ${photos.length} personal reference photo(s). Use these photos as inspiration for personalizing the theme — describe what you imagine they depict and weave those elements into the game.`
     : "";
 
   const handleGenerateBoth = async () => {
