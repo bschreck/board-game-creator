@@ -10,15 +10,15 @@ const LOCAL_CHROME_PATHS = [
   "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
 ];
 
+function isVercel(): boolean {
+  return !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+}
+
 async function getExecutablePath(): Promise<string> {
   // In serverless (Vercel), use @sparticuz/chromium
-  try {
-    const serverlessPath = await chromium.executablePath();
-    if (serverlessPath && existsSync(serverlessPath)) {
-      return serverlessPath;
-    }
-  } catch {
-    // Not in serverless environment, fall through to local detection
+  // The binary is extracted lazily — do NOT check existsSync on the returned path
+  if (isVercel()) {
+    return await chromium.executablePath();
   }
 
   // Local dev: find system Chrome
@@ -26,9 +26,14 @@ async function getExecutablePath(): Promise<string> {
     if (existsSync(p)) return p;
   }
 
-  throw new Error(
-    "No Chrome/Chromium binary found. Install Google Chrome or set CHROME_PATH."
-  );
+  // Fallback: try chromium.executablePath() anyway (e.g. Docker)
+  try {
+    return await chromium.executablePath();
+  } catch {
+    throw new Error(
+      "No Chrome/Chromium binary found. Install Google Chrome or set CHROME_PATH."
+    );
+  }
 }
 
 /**
