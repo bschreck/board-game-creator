@@ -3,10 +3,16 @@
  * Uses a simple fetch-based approach — swap in SendGrid, Resend, or Postmark as needed.
  */
 
+interface EmailAttachment {
+  filename: string;
+  content: string; // base64-encoded
+}
+
 interface EmailParams {
   to: string;
   subject: string;
   html: string;
+  attachments?: EmailAttachment[];
 }
 
 async function sendEmail(params: EmailParams): Promise<boolean> {
@@ -20,19 +26,27 @@ async function sendEmail(params: EmailParams): Promise<boolean> {
 
   // Resend API (recommended for Vercel)
   try {
+    const payload: Record<string, unknown> = {
+      from: fromEmail,
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+    };
+    if (params.attachments && params.attachments.length > 0) {
+      payload.attachments = params.attachments;
+    }
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        from: fromEmail,
-        to: params.to,
-        subject: params.subject,
-        html: params.html,
-      }),
+      body: JSON.stringify(payload),
     });
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("Email API error:", res.status, text);
+    }
     return res.ok;
   } catch (e) {
     console.error("Failed to send email:", e);
@@ -119,4 +133,81 @@ export async function sendShippingNotification(params: {
       </div>
     `,
   });
+}
+
+/**
+ * Send all game design assets to CREATOR_EMAIL for review/production.
+ * Attaches images and PDF as base64 attachments via Resend API.
+ */
+export async function sendDesignSubmission(params: {
+  gameName: string;
+  baseGame: string;
+  theme: string;
+  playerCount: string;
+  rulesText: string;
+  description: string;
+  attachments: EmailAttachment[];
+}) {
+  const creatorEmail = process.env.CREATOR_EMAIL;
+  if (!creatorEmail) {
+    console.error("CREATOR_EMAIL not configured — cannot send design submission");
+    return false;
+  }
+
+  return sendEmail({
+    to: creatorEmail,
+    subject: `New Game Design Submission: ${params.gameName}`,
+    attachments: params.attachments,
+    html: `
+      <div style="font-family: system-ui, sans-serif; max-width: 700px; margin: 0 auto;">
+        <h1 style="color: #7c3aed;">New Game Design Submitted</h1>
+        <p>A new custom game design has been submitted for review.</p>
+
+        <div style="background: #f5f3ff; border-radius: 12px; padding: 20px; margin: 20px 0;">
+          <h2 style="margin: 0 0 12px; font-size: 18px; color: #4c1d95;">${esc(params.gameName)}</h2>
+          <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 6px 0; color: #6b7280; width: 120px;">Base Game</td>
+              <td style="padding: 6px 0; font-weight: 600;">${esc(params.baseGame)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #6b7280;">Theme</td>
+              <td style="padding: 6px 0; font-weight: 600;">${esc(params.theme)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #6b7280;">Players</td>
+              <td style="padding: 6px 0; font-weight: 600;">${esc(params.playerCount)}</td>
+            </tr>
+          </table>
+        </div>
+
+        ${params.description ? `
+        <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin: 20px 0;">
+          <h3 style="margin: 0 0 8px; font-size: 14px; color: #374151;">Description</h3>
+          <p style="margin: 0; font-size: 14px; color: #4b5563; line-height: 1.6;">${esc(params.description)}</p>
+        </div>
+        ` : ""}
+
+        <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin: 20px 0;">
+          <h3 style="margin: 0 0 8px; font-size: 14px; color: #374151;">Rules</h3>
+          <pre style="margin: 0; font-size: 13px; color: #4b5563; white-space: pre-wrap; font-family: system-ui, sans-serif; line-height: 1.6;">${esc(params.rulesText)}</pre>
+        </div>
+
+        <h3 style="font-size: 14px; color: #374151; margin-top: 24px;">Attachments</h3>
+        <ul style="font-size: 14px; color: #4b5563;">
+          ${params.attachments.map((a) => `<li>${esc(a.filename)}</li>`).join("")}
+        </ul>
+
+        <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">— Board Game Creator</p>
+      </div>
+    `,
+  });
+}
+
+function esc(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

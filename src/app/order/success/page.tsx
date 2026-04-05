@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -8,11 +8,8 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { GenerationProgress } from "@/components/generation-progress";
-import { AssetGallery } from "@/components/asset-gallery";
 import {
   CheckCircle2,
-  Package,
   Mail,
   ArrowRight,
   Loader2,
@@ -22,9 +19,7 @@ import {
 
 function SuccessContent() {
   const searchParams = useSearchParams();
-  const sessionId = searchParams.get("session_id");
   const gameId = searchParams.get("gameId");
-  const [showAssets, setShowAssets] = useState(false);
 
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-16">
@@ -57,14 +52,13 @@ function SuccessContent() {
           <div className="flex items-center justify-center gap-2 mb-4">
             <PartyPopper className="h-6 w-6 text-amber-500" />
             <h1 className="text-3xl font-bold text-gray-900">
-              Order Confirmed!
+              Game Design Submitted!
             </h1>
             <PartyPopper className="h-6 w-6 text-amber-500 scale-x-[-1]" />
           </div>
 
           <p className="text-lg text-gray-600 mb-8 max-w-md mx-auto">
-            Your custom board game is being created. We&apos;ll email you updates
-            as it moves through production.
+            Your game design has been sent! We will review and get back to you.
           </p>
         </motion.div>
 
@@ -79,24 +73,24 @@ function SuccessContent() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 <div className="text-center">
                   <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 mb-3">
-                    <Package className="h-6 w-6 text-violet-600" />
+                    <Mail className="h-6 w-6 text-violet-600" />
                   </div>
                   <h3 className="font-semibold text-gray-900 text-sm">
-                    Production
+                    Sent
                   </h3>
                   <p className="text-xs text-gray-500 mt-1">
-                    Your game is being crafted with premium materials
+                    All assets and rules have been emailed for review
                   </p>
                 </div>
                 <div className="text-center">
                   <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 mb-3">
-                    <Mail className="h-6 w-6 text-amber-600" />
+                    <Sparkles className="h-6 w-6 text-amber-600" />
                   </div>
                   <h3 className="font-semibold text-gray-900 text-sm">
-                    Updates
+                    Review
                   </h3>
                   <p className="text-xs text-gray-500 mt-1">
-                    We&apos;ll email you when it ships with tracking info
+                    Our team will review your game design
                   </p>
                 </div>
                 <div className="text-center">
@@ -104,58 +98,16 @@ function SuccessContent() {
                     <CheckCircle2 className="h-6 w-6 text-emerald-600" />
                   </div>
                   <h3 className="font-semibold text-gray-900 text-sm">
-                    Delivery
+                    Next Steps
                   </h3>
                   <p className="text-xs text-gray-500 mt-1">
-                    Expected delivery in 5-7 business days
+                    We&apos;ll reach out with production details
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-
-          {sessionId && (
-            <p className="text-xs text-gray-400">
-              Order reference: {sessionId.slice(0, 20)}...
-            </p>
-          )}
         </motion.div>
-
-        {/* Generation Progress */}
-        {gameId && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className="mb-8 text-left"
-          >
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-violet-500" />
-              Game Generation
-            </h2>
-            <GenerationProgress gameId={gameId} />
-
-            {/* Show/hide assets */}
-            <div className="mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAssets(!showAssets)}
-              >
-                {showAssets ? "Hide Generated Assets" : "View Generated Assets"}
-              </Button>
-            </div>
-            {showAssets && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                className="mt-4"
-              >
-                <AssetGallery gameId={gameId} />
-              </motion.div>
-            )}
-          </motion.div>
-        )}
 
         <motion.div
           initial={{ opacity: 0 }}
@@ -165,7 +117,7 @@ function SuccessContent() {
         >
           <Link href="/dashboard">
             <Button size="lg" className="gap-2">
-              View My Orders
+              View My Games
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>

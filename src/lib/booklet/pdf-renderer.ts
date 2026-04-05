@@ -47,15 +47,22 @@ export async function renderPdf(html: string): Promise<Buffer> {
     defaultViewport: { width: 1280, height: 900 },
     executablePath,
     headless: true,
+    protocolTimeout: 90_000,
   });
 
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    // All assets are inline base64 — no network requests to wait for.
+    // Use domcontentloaded and a generous timeout for cold-start serverless.
+    await page.setContent(html, {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
     const pdf = await page.pdf({
       format: "A4",
       printBackground: true,
       margin: { top: "0", right: "0", bottom: "0", left: "0" },
+      timeout: 90_000,
     });
     return Buffer.from(pdf);
   } finally {

@@ -4,7 +4,7 @@ import { renderTemplate, gameToRulebookData } from "@/lib/booklet/template-engin
 import { renderPdf } from "@/lib/booklet/pdf-renderer";
 import type { RulebookData, TemplateStyle } from "@/lib/booklet/types";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
