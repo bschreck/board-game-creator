@@ -7,6 +7,34 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Upload, X, ImagePlus, Users } from "lucide-react";
 
+const MAX_PHOTO_WIDTH = 800;
+
+function fileToBase64DataUri(file: File): Promise<string | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      let { width, height } = img;
+      if (width > MAX_PHOTO_WIDTH) {
+        height = Math.round(height * (MAX_PHOTO_WIDTH / width));
+        width = MAX_PHOTO_WIDTH;
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(null); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", 0.8));
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve(null);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 export function StepPhotos() {
   const { photos, addPhoto, removePhoto } = useGameStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -16,8 +44,9 @@ export function StepPhotos() {
     if (!files) return;
     Array.from(files).forEach((file) => {
       if (!file.type.startsWith("image/")) return;
-      const url = URL.createObjectURL(file);
-      addPhoto({ url, name: file.name });
+      fileToBase64DataUri(file).then((url) => {
+        if (url) addPhoto({ url, name: file.name });
+      });
     });
   };
 

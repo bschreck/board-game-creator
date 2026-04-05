@@ -36,6 +36,7 @@ interface GeneratedArt {
 }
 
 async function blobUrlToBase64(blobUrl: string): Promise<string | null> {
+  if (blobUrl.startsWith("data:")) return blobUrl;
   try {
     const res = await fetch(blobUrl);
     const blob = await res.blob();
@@ -45,7 +46,8 @@ async function blobUrlToBase64(blobUrl: string): Promise<string | null> {
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(blob);
     });
-  } catch {
+  } catch (err) {
+    console.error("blobUrlToBase64 failed for:", blobUrl, err);
     return null;
   }
 }
@@ -71,7 +73,8 @@ async function generateArtImage(params: {
       return { image: null, error: data.error || "Generation failed" };
     }
     return data;
-  } catch {
+  } catch (err) {
+    console.error("Art generation request failed:", err);
     return { image: null, error: "Network error. Please try again." };
   }
 }
