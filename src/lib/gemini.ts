@@ -1,8 +1,8 @@
-import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
+import { GoogleGenerativeAI, GenerativeModel, GenerateContentResult } from "@google/generative-ai";
 
 let _genAI: GoogleGenerativeAI | null = null;
 
-export function getGemini() {
+export function getGemini(): GoogleGenerativeAI {
   if (!_genAI) {
     const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     if (!key) throw new Error("GEMINI_API_KEY or GOOGLE_API_KEY is required");
@@ -11,25 +11,8 @@ export function getGemini() {
   return _genAI;
 }
 
-// Model preferences: try pro first for quality, fall back to flash for speed
 const TEXT_MODELS = ["gemini-2.5-pro", "gemini-2.5-flash"] as const;
-const IMAGE_MODEL = "gemini-2.0-flash-exp"; // Supports image generation via responseModalities
-
-export async function getTextModel(): Promise<GenerativeModel> {
-  const genAI = getGemini();
-  for (const modelName of TEXT_MODELS) {
-    try {
-      const model = genAI.getGenerativeModel({ model: modelName });
-      // Quick test to verify model availability
-      await model.generateContent("test");
-      return model;
-    } catch {
-      console.warn(`Model ${modelName} unavailable, trying next...`);
-    }
-  }
-  // Final fallback
-  return genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-}
+const IMAGE_MODEL = "gemini-2.0-flash-exp";
 
 // Cache the working text model name to avoid repeated probing
 let _cachedTextModel: string | null = null;
@@ -58,4 +41,34 @@ export function getImageModel(): GenerativeModel {
   return genAI.getGenerativeModel({ model: IMAGE_MODEL });
 }
 
-export { IMAGE_MODEL, TEXT_MODELS };
+/**
+ * Extract the first inline image from a Gemini response as a Buffer.
+ * Returns null if no image was found.
+ */
+export function extractImageFromResponse(response: GenerateContentResult): Buffer | null {
+  const parts = response.response.candidates?.[0]?.content?.parts || [];
+  for (const part of parts) {
+    const inlineData = part.inlineData as { data: string; mimeType: string } | undefined;
+    if (inlineData) {
+      return Buffer.from(inlineData.data, "base64");
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract the first inline image from a Gemini response as a data URL.
+ * Returns null if no image was found.
+ */
+export function extractImageDataUrl(response: GenerateContentResult): string | null {
+  const parts = response.response.candidates?.[0]?.content?.parts || [];
+  for (const part of parts) {
+    const inlineData = part.inlineData as { data: string; mimeType: string } | undefined;
+    if (inlineData) {
+      return `data:${inlineData.mimeType};base64,${inlineData.data}`;
+    }
+  }
+  return null;
+}
+
+export { IMAGE_MODEL };

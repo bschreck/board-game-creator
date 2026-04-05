@@ -50,9 +50,9 @@ Design a vibrant, eye-catching box cover with the game title "${gameName}" promi
 }
 
 async function tryGeminiImageGen(prompt: string, referenceImages?: string[]): Promise<string | null> {
-  const { getGemini } = await import("@/lib/gemini");
+  const { getGemini, extractImageDataUrl } = await import("@/lib/gemini");
   const genAI = getGemini();
-  const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-image-preview" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
   // Build parts: text prompt + optional reference images
   const parts: { text?: string; inlineData?: { data: string; mimeType: string } }[] = [
@@ -75,14 +75,7 @@ async function tryGeminiImageGen(prompt: string, referenceImages?: string[]): Pr
     } as Record<string, unknown>,
   } as Parameters<typeof model.generateContent>[0]);
 
-  const responseParts = response.response.candidates?.[0]?.content?.parts || [];
-  for (const part of responseParts) {
-    const inlineData = (part as { inlineData?: { data: string; mimeType: string } }).inlineData;
-    if (inlineData) {
-      return `data:${inlineData.mimeType};base64,${inlineData.data}`;
-    }
-  }
-  return null;
+  return extractImageDataUrl(response);
 }
 
 export async function POST(req: NextRequest) {

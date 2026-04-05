@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { stripe, getTierPrice, getDiscountedUnitPrice, type PricingTier } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
+import { getTierPrice, getDiscountedUnitPrice, type PricingTier } from "@/lib/pricing";
 import { BASE_GAMES } from "@/lib/game-data";
 
 export async function POST(req: NextRequest) {
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
   const totalAmount = unitPrice * totalCopies;
 
   try {
+    const stripe = getStripe();
     const stripeSession = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [

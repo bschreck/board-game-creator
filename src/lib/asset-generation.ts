@@ -3,7 +3,7 @@
  * Generates print-ready game assets using Gemini AI
  */
 
-import { getCachedTextModel, getGemini } from "./gemini";
+import { getCachedTextModel, getGemini, extractImageFromResponse } from "./gemini";
 import { prisma } from "./prisma";
 import { sendGenerationComplete } from "./email";
 
@@ -102,6 +102,22 @@ async function saveAsset(
   });
 }
 
+// ---- Gemini Image Helper ----
+
+async function generateGeminiImage(prompt: string): Promise<Buffer | null> {
+  const genAI = getGemini();
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+
+  const response = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseModalities: ["IMAGE", "TEXT"] as unknown as undefined,
+    } as Record<string, unknown>,
+  } as Parameters<typeof model.generateContent>[0]);
+
+  return extractImageFromResponse(response);
+}
+
 // ---- Text Generation ----
 
 export async function generateRulesDocument(ctx: GenerationContext): Promise<string> {
@@ -177,9 +193,6 @@ export async function generateCardImage(params: {
   isBack?: boolean;
 }): Promise<Buffer | null> {
   try {
-    const genAI = getGemini();
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-
     const prompt = params.isBack
       ? `Generate a game card back design for "${params.gameName}" themed "${params.theme}". The design should be a decorative pattern with the game logo/name centered. Professional board game card back, high quality, print-ready. Size: 2.5x3.5 inches at 300 DPI. Include 1/8 inch bleed area around edges.`
       : `Generate a professional game card design for a board game card:
@@ -196,22 +209,7 @@ Design requirements:
 - Clear readable text areas
 - Size: 2.5x3.5 inches at 300 DPI with 1/8 inch bleed`;
 
-    const response = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseModalities: ["IMAGE", "TEXT"] as unknown as undefined,
-      } as Record<string, unknown>,
-    } as Parameters<typeof model.generateContent>[0]);
-
-    // Extract image from response
-    const parts = response.response.candidates?.[0]?.content?.parts || [];
-    for (const part of parts) {
-      const inlineData = (part as { inlineData?: { data: string; mimeType: string } }).inlineData;
-      if (inlineData) {
-        return Buffer.from(inlineData.data, "base64");
-      }
-    }
-    return null;
+    return await generateGeminiImage(prompt);
   } catch (e) {
     console.error("Image generation failed:", e);
     return null;
@@ -226,9 +224,6 @@ export async function generateBoxArt(params: {
   side: "front" | "back";
 }): Promise<Buffer | null> {
   try {
-    const genAI = getGemini();
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-
     const prompt = params.side === "front"
       ? `Generate professional board game box cover art:
 Game: "${params.gameName}"
@@ -254,21 +249,7 @@ Design the back cover with:
 - Professional layout matching retail board games
 - Size: 4x5.5 inches at 300 DPI with 1/8 inch bleed`;
 
-    const response = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseModalities: ["IMAGE", "TEXT"] as unknown as undefined,
-      } as Record<string, unknown>,
-    } as Parameters<typeof model.generateContent>[0]);
-
-    const parts = response.response.candidates?.[0]?.content?.parts || [];
-    for (const part of parts) {
-      const inlineData = (part as { inlineData?: { data: string; mimeType: string } }).inlineData;
-      if (inlineData) {
-        return Buffer.from(inlineData.data, "base64");
-      }
-    }
-    return null;
+    return await generateGeminiImage(prompt);
   } catch (e) {
     console.error("Box art generation failed:", e);
     return null;
@@ -282,9 +263,6 @@ export async function generateBoardImage(params: {
   rules: string[];
 }): Promise<Buffer | null> {
   try {
-    const genAI = getGemini();
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-
     const prompt = `Generate a complete game board illustration:
 Game: "${params.gameName}"
 Theme: "${params.theme}" (based on ${params.baseGame})
@@ -297,21 +275,7 @@ Design a full game board with:
 - High quality board game artwork
 - Size: 19x19 inches at 300 DPI with 1/8 inch bleed`;
 
-    const response = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseModalities: ["IMAGE", "TEXT"] as unknown as undefined,
-      } as Record<string, unknown>,
-    } as Parameters<typeof model.generateContent>[0]);
-
-    const parts = response.response.candidates?.[0]?.content?.parts || [];
-    for (const part of parts) {
-      const inlineData = (part as { inlineData?: { data: string; mimeType: string } }).inlineData;
-      if (inlineData) {
-        return Buffer.from(inlineData.data, "base64");
-      }
-    }
-    return null;
+    return await generateGeminiImage(prompt);
   } catch (e) {
     console.error("Board generation failed:", e);
     return null;
@@ -328,9 +292,6 @@ export async function generateManualPage(params: {
   totalPages: number;
 }): Promise<Buffer | null> {
   try {
-    const genAI = getGemini();
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-
     const prompt = `Generate a beautifully designed instruction manual page for a board game:
 Game: "${params.gameName}", Theme: "${params.theme}"
 Page ${params.pageNumber} of ${params.totalPages}
@@ -346,21 +307,7 @@ Design requirements:
 - Size: 8.5x11 inches at 300 DPI with 1/8 inch bleed
 - Clean, print-ready design`;
 
-    const response = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseModalities: ["IMAGE", "TEXT"] as unknown as undefined,
-      } as Record<string, unknown>,
-    } as Parameters<typeof model.generateContent>[0]);
-
-    const parts = response.response.candidates?.[0]?.content?.parts || [];
-    for (const part of parts) {
-      const inlineData = (part as { inlineData?: { data: string; mimeType: string } }).inlineData;
-      if (inlineData) {
-        return Buffer.from(inlineData.data, "base64");
-      }
-    }
-    return null;
+    return await generateGeminiImage(prompt);
   } catch (e) {
     console.error("Manual page generation failed:", e);
     return null;

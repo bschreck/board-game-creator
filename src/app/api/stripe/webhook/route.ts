@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { runGenerationPipeline, type GenerationContext } from "@/lib/asset-generation";
 import { sendOrderConfirmation } from "@/lib/email";
+import { startBackgroundPipeline, createOrResetGenerationJob } from "@/lib/generation-helpers";
 import Stripe from "stripe";
 
 export const maxDuration = 300;
@@ -15,6 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing signature" }, { status: 400 });
   }
 
+  const stripe = getStripe();
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(
@@ -45,41 +47,24 @@ export async function POST(req: NextRequest) {
         data: { status: "ordered" },
       });
 
+      // Trigger asset generation pipeline
+      const game = await prisma.game.findUnique({ where: { id: gameId } });
+
       // Send order confirmation email
       const order = await prisma.order.findFirst({ where: { stripeSessionId: session.id } });
       const orderUser = await prisma.user.findUnique({ where: { id: session.metadata?.userId || "" } });
       if (orderUser?.email && order) {
         sendOrderConfirmation({
           email: orderUser.email,
-          gameName: session.metadata?.gameId || "Your Game",
+          gameName: game?.name || "Your Game",
           orderId: order.id,
           tier: order.tier,
           amount: order.amount,
         }).catch(() => {}); // Fire and forget
       }
 
-      // Trigger asset generation pipeline
-      const game = await prisma.game.findUnique({ where: { id: gameId } });
       if (game) {
-        // Create generation job
-        await prisma.generationJob.upsert({
-          where: { gameId },
-          create: {
-            gameId,
-            status: "generating",
-            phase: "rules",
-            progress: 0,
-            startedAt: new Date(),
-          },
-          update: {
-            status: "generating",
-            phase: "rules",
-            progress: 0,
-            error: null,
-            startedAt: new Date(),
-            completedAt: null,
-          },
-        });
+        await createOrResetGenerationJob(gameId);
 
         const ctx: GenerationContext = {
           gameId,
@@ -91,19 +76,10 @@ export async function POST(req: NextRequest) {
           photos: JSON.parse(game.photos || "[]"),
         };
 
-        // Run generation in background
         const pipelinePromise = runGenerationPipeline(ctx).catch((err) => {
           console.error("Pipeline error from webhook:", err);
         });
-
-        try {
-          const { after } = await import("next/server");
-          if (typeof after === "function") {
-            after(pipelinePromise);
-          }
-        } catch {
-          void pipelinePromise;
-        }
+        await startBackgroundPipeline(pipelinePromise);
       }
     }
   }

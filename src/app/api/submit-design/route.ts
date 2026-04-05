@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { renderTemplate, gameToRulebookData } from "@/lib/booklet/template-engine";
 import { renderPdf } from "@/lib/booklet/pdf-renderer";
+import { parseJsonArray, escHtml } from "@/lib/generation-helpers";
 import { Resend } from "resend";
 
 export const maxDuration = 120;
@@ -84,8 +85,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Build rules summary
-  const rules = parseJsonSafe(game.rules, []);
-  const customRules = parseJsonSafe(game.customRules, []);
+  const rules = parseJsonArray(game.rules, []);
+  const customRules = parseJsonArray(game.customRules, []);
 
   const rulesHtml = rules.length > 0
     ? `<ul>${rules.map((r: string) => `<li>${escHtml(r)}</li>`).join("")}</ul>`
@@ -185,20 +186,3 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ success: true });
 }
 
-function parseJsonSafe(val: string | null | undefined, fallback: string[]): string[] {
-  if (!val) return fallback;
-  try {
-    const parsed = JSON.parse(val);
-    return Array.isArray(parsed) ? parsed : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function escHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
